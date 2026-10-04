@@ -233,13 +233,13 @@ $_.Name -like '*Store*'
 } | Foreach {Add-AppxPackage -DisableDevelopmentMode -Register -ErrorAction SilentlyContinue "$($_.InstallLocation)\AppXManifest.xml"}
 
 # download edge webview installer
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/edgewebview.exe" -OutFile "$env:SystemRoot\Temp\edgewebview.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/edgewebview.exe" -OutFile "$env:SystemRoot\Temp\edgewebview.exe"
 
 # start edge webview installer
 Start-Process -Wait "$env:SystemRoot\Temp\edgewebview.exe"
 
 # download gamebar repair tool
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/gamingrepairtool.exe" -OutFile "$env:SystemRoot\Temp\gamingrepairtool.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/gamingrepairtool.exe" -OutFile "$env:SystemRoot\Temp\gamingrepairtool.exe"
 
 # start gamebar repair tool
 Start-Process "$env:SystemRoot\Temp\gamingrepairtool.exe"

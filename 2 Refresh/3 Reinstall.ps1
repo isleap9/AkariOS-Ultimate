@@ -31,7 +31,7 @@ Clear-Host
 Write-Host "Downloading: Media Creation Tool Win 10..."
 
 # download media creation tool win 10
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/mediacreationtoolw10.exe" -OutFile "$env:SystemRoot\Temp\mediacreationtoolw10.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/mediacreationtoolw10.exe" -OutFile "$env:SystemRoot\Temp\mediacreationtoolw10.exe"
 
 # start media creation tool win 10
 Start-Process "$env:SystemRoot\Temp\mediacreationtoolw10.exe"
@@ -46,7 +46,7 @@ Clear-Host
 Write-Host "Downloading: Media Creation Tool Win 11..."
 
 # download media creation tool win 11
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/mediacreationtoolw11.exe" -OutFile "$env:SystemRoot\Temp\mediacreationtoolw11.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/mediacreationtoolw11.exe" -OutFile "$env:SystemRoot\Temp\mediacreationtoolw11.exe"
 
 # start media creation tool win 11
 Start-Process "$env:SystemRoot\Temp\mediacreationtoolw11.exe"

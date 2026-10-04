@@ -83,7 +83,7 @@ Remove-Item $_.FullName -Recurse -Force
 New-Item -Path "$env:SystemDrive\Program Files (x86)\Autoruns" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 
 # download autoruns
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/autoruns.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Autoruns\Autoruns.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/autoruns.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Autoruns\Autoruns.exe"
 
 # create desktop shortcut
 $WshShell = New-Object -comObject WScript.Shell

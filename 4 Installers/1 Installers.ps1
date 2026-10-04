@@ -70,7 +70,7 @@ Clear-Host
 Write-Host "Installing: 7Zip..."
 
 # download 7zip
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/7zip.exe" -OutFile "$env:SystemRoot\Temp\7zip.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/7zip.exe" -OutFile "$env:SystemRoot\Temp\7zip.exe"
 
 # install 7zip
 Start-Process -Wait "$env:SystemRoot\Temp\7zip.exe" -ArgumentList "/S"
@@ -102,7 +102,7 @@ Write-Host "Installing: Battle.net..."
 Write-Host "Close launcher when installer is finished"
 
 # download battle.net
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/battlenet.exe" -OutFile "$env:SystemRoot\Temp\battlenet.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/battlenet.exe" -OutFile "$env:SystemRoot\Temp\battlenet.exe"
 
 # install battle.net 
 Start-Process -Wait "$env:SystemRoot\Temp\battlenet.exe" -ArgumentList '--lang=enUS --installpath="C:\Program Files (x86)\Battle.net"'
@@ -139,7 +139,7 @@ Clear-Host
 Write-Host "Installing: Brave..."
 
 # download brave
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/brave.exe" -OutFile "$env:SystemRoot\Temp\brave.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/brave.exe" -OutFile "$env:SystemRoot\Temp\brave.exe"
 
 # install brave
 Start-Process "$env:SystemRoot\Temp\brave.exe" -ArgumentList "--system-level" -Wait
@@ -189,10 +189,10 @@ Write-Host "- Scaled Resolution Editor..."
 New-Item -Path "$env:SystemDrive\Program Files (x86)\CRUSRE" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 
 # download custom resolution utility
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/cru.exe" -OutFile "$env:SystemDrive\Program Files (x86)\CRUSRE\CRU.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/cru.exe" -OutFile "$env:SystemDrive\Program Files (x86)\CRUSRE\CRU.exe"
 
 # download scaled resolution editor
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/sre.exe" -OutFile "$env:SystemDrive\Program Files (x86)\CRUSRE\SRE.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/sre.exe" -OutFile "$env:SystemDrive\Program Files (x86)\CRUSRE\SRE.exe"
 
 # create desktop shortcut
 $WshShell = New-Object -comObject WScript.Shell
@@ -254,7 +254,7 @@ Set-Content -Path "$env:APPDATA\discord\settings.json" -Value $DiscordSettings -
 $Global:tempDir = (([System.IO.Path]::GetTempPath())).trimend('\')
 
 # download discord
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/discord.exe" -OutFile "$tempDir\discord.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/discord.exe" -OutFile "$tempDir\discord.exe"
 
 # install discord	
 Start-Process "$tempDir\discord.exe"
@@ -281,7 +281,7 @@ Clear-Host
 Write-Host "Installing: Electronic Arts..."
 
 # download electronic arts
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/ea.exe" -OutFile "$env:SystemRoot\Temp\ea.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/ea.exe" -OutFile "$env:SystemRoot\Temp\ea.exe"
 
 # install electronic arts
 Start-Process -Wait "$env:SystemRoot\Temp\ea.exe"
@@ -304,7 +304,7 @@ Clear-Host
 Write-Host "Installing: Epic Games..."
 
 # download epic games
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/epic.msi" -OutFile "$env:SystemRoot\Temp\epic.msi"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/epic.msi" -OutFile "$env:SystemRoot\Temp\epic.msi"
 
 # install epic games
 Start-Process -Wait "$env:SystemRoot\Temp\epic.msi" -ArgumentList "/quiet"
@@ -322,7 +322,7 @@ Clear-Host
 Write-Host "Installing: Escape From Tarkov..."
 
 # download escape from tarkov
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/bsg.exe" -OutFile "$env:SystemRoot\Temp\bsg.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/bsg.exe" -OutFile "$env:SystemRoot\Temp\bsg.exe"
 
 # install escape from tarkov
 Start-Process -Wait "$env:SystemRoot\Temp\bsg.exe" -ArgumentList "/VERYSILENT /NORESTART"
@@ -349,7 +349,7 @@ Clear-Host
 Write-Host "Installing: Firefox..."
 
 # download firefox
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/firefox.exe" -OutFile "$env:SystemRoot\Temp\firefox.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/firefox.exe" -OutFile "$env:SystemRoot\Temp\firefox.exe"
 
 # install firefox
 Start-Process -Wait "$env:SystemRoot\Temp\firefox.exe" -ArgumentList "/S"
@@ -407,7 +407,7 @@ Clear-Host
 Write-Host "Installing: Frame View..."
 
 # download frame view
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/frameview.exe" -OutFile "$env:SystemRoot\Temp\frameview.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/frameview.exe" -OutFile "$env:SystemRoot\Temp\frameview.exe"
 
 # install frame view 
 Start-Process -Wait "$env:SystemRoot\Temp\frameview.exe" -ArgumentList "/s"
@@ -427,7 +427,7 @@ Write-Host "Installing: GOG launcher..."
 Write-Host "Close launcher when installer is finished"
 
 # download gog launcher
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/gog.exe" -OutFile "$env:SystemRoot\Temp\gog.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/gog.exe" -OutFile "$env:SystemRoot\Temp\gog.exe"
 
 # install gog launcher
 Start-Process -Wait "$env:SystemRoot\Temp\gog.exe"
@@ -450,7 +450,7 @@ Clear-Host
 Write-Host "Installing: Google Chrome..."
 
 # download google chrome
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/chrome.exe" -OutFile "$env:SystemRoot\Temp\chrome.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/chrome.exe" -OutFile "$env:SystemRoot\Temp\chrome.exe"
 
 # install google chrome
 Start-Process -Wait "$env:SystemRoot\Temp\chrome.exe" -ArgumentList "--silent --install" -WindowStyle Hidden
@@ -492,7 +492,7 @@ Clear-Host
 Write-Host "Installing: Helium..."
 
 # download helium
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/helium.exe" -OutFile "$env:SystemRoot\Temp\helium.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/helium.exe" -OutFile "$env:SystemRoot\Temp\helium.exe"
 
 # install helium
 Start-Process -Wait "$env:SystemRoot\Temp\helium.exe" -ArgumentList "/S" -WindowStyle Hidden
@@ -534,7 +534,7 @@ Clear-Host
 Write-Host "Installing: League Of Legends..."
 
 # download league of legends
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/league.exe" -OutFile "$env:SystemRoot\Temp\league.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/league.exe" -OutFile "$env:SystemRoot\Temp\league.exe"
 
 # install league of legends
 Start-Process "$env:SystemRoot\Temp\league.exe" -ArgumentList "--skip-to-install"
@@ -564,7 +564,7 @@ Write-Host "Installing: More Clock Tool..."
 New-Item -Path "$env:SystemDrive\Program Files (x86)\More Clock Tool" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 
 # download more clock tool
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/moreclocktool.exe" -OutFile "$env:SystemDrive\Program Files (x86)\More Clock Tool\More Clock Tool.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/moreclocktool.exe" -OutFile "$env:SystemDrive\Program Files (x86)\More Clock Tool\More Clock Tool.exe"
 
 # create desktop shortcut
 $WshShell = New-Object -comObject WScript.Shell
@@ -591,7 +591,7 @@ Clear-Host
 Write-Host "Installing: Notepad ++..."
 
 # download notepad ++
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/notepad++.exe" -OutFile "$env:SystemRoot\Temp\notepad++.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/notepad++.exe" -OutFile "$env:SystemRoot\Temp\notepad++.exe"
 
 # install notepad ++
 Start-Process -Wait "$env:SystemRoot\Temp\notepad++.exe" -ArgumentList "/S"
@@ -697,7 +697,7 @@ Clear-Host
 Write-Host "Installing: Nvidia App..."
 
 # download nvidia app
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/nvidiaapp.exe" -OutFile "$env:SystemRoot\Temp\nvidiaapp.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/nvidiaapp.exe" -OutFile "$env:SystemRoot\Temp\nvidiaapp.exe"
 
 # install nvidia app
 Start-Process -Wait "$env:SystemRoot\Temp\nvidiaapp.exe" -ArgumentList "/s"
@@ -719,7 +719,7 @@ Write-Host "Installing: Nvidia Profile Inspector..."
 New-Item -Path "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 
 # download nvidia profile inspector
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/inspector.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/inspector.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe"
 
 # create desktop shortcut
 $WshShell = New-Object -comObject WScript.Shell
@@ -746,7 +746,7 @@ Clear-Host
 Write-Host "Installing: OBS Studio..."
 
 # download obs studio                      
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/obs.exe" -OutFile "$env:SystemRoot\Temp\obs.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/obs.exe" -OutFile "$env:SystemRoot\Temp\obs.exe"
 
 # install obs studio
 Start-Process -Wait "$env:SystemRoot\Temp\obs.exe" -ArgumentList "/S"
@@ -764,7 +764,7 @@ Write-Host "Installing: Onboard Memory Manager..."
 New-Item -Path "$env:SystemDrive\Program Files (x86)\Onboard Memory Manager" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 
 # download onboard memory manager
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/omm.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Onboard Memory Manager\Onboard Memory Manager.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/omm.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Onboard Memory Manager\Onboard Memory Manager.exe"
 
 # create desktop shortcut
 $WshShell = New-Object -comObject WScript.Shell
@@ -791,7 +791,7 @@ Clear-Host
 Write-Host "Installing: Pot Player..."
 
 # download pot player      
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/potplayer.exe" -OutFile "$env:SystemRoot\Temp\potplayer.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/potplayer.exe" -OutFile "$env:SystemRoot\Temp\potplayer.exe"
 
 # install pot player 
 Start-Process -Wait "$env:SystemRoot\Temp\potplayer.exe" -ArgumentList "/S /allusers"
@@ -810,7 +810,7 @@ Clear-Host
 Write-Host "Installing: Roblox..."
 
 # download roblox
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/roblox.exe" -OutFile "$env:SystemRoot\Temp\roblox.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/roblox.exe" -OutFile "$env:SystemRoot\Temp\roblox.exe"
 
 # install roblox
 Start-Process "$env:SystemRoot\Temp\roblox.exe" -ArgumentList "/S"
@@ -850,7 +850,7 @@ Clear-Host
 Write-Host "Installing: Rockstar Games..."
 
 # download rockstar games
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/rockstar.exe" -OutFile "$env:SystemRoot\Temp\rockstar.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/rockstar.exe" -OutFile "$env:SystemRoot\Temp\rockstar.exe"
 
 # install rockstar games
 Start-Process -Wait "$env:SystemRoot\Temp\rockstar.exe" -ArgumentList "/s /f"
@@ -881,7 +881,7 @@ Set-Content -Path "$env:APPDATA\Spotify\prefs" -Value $SpotifySettingsPrefs -For
 $Global:tempDir = (([System.IO.Path]::GetTempPath())).trimend('\')
 
 # download spotify
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/spotify.exe" -OutFile "$tempDir\spotify.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/spotify.exe" -OutFile "$tempDir\spotify.exe"
 
 # install spotify
 Start-Process "explorer.exe" -ArgumentList "$tempDir\spotify.exe"
@@ -903,7 +903,7 @@ Clear-Host
 Write-Host "Installing: Steam..."
 
 # download steam
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/steam.exe" -OutFile "$env:SystemRoot\Temp\steam.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/steam.exe" -OutFile "$env:SystemRoot\Temp\steam.exe"
 
 # install steam
 Start-Process -Wait "$env:SystemRoot\Temp\steam.exe" -ArgumentList "/S"
@@ -925,7 +925,7 @@ Clear-Host
 Write-Host "Installing: Ubisoft Connect..."
 
 # download ubisoft connect
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/ubisoft.exe" -OutFile "$env:SystemRoot\Temp\ubisoft.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/ubisoft.exe" -OutFile "$env:SystemRoot\Temp\ubisoft.exe"
 
 # install ubisoft connect
 Start-Process -Wait "$env:SystemRoot\Temp\ubisoft.exe" -ArgumentList "/S"
@@ -944,7 +944,7 @@ Clear-Host
 Write-Host "Installing: Valorant..."
 
 # download valorant
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/valorant.exe" -OutFile "$env:SystemRoot\Temp\valorant.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/valorant.exe" -OutFile "$env:SystemRoot\Temp\valorant.exe"
 
 # install valorant
 Start-Process "$env:SystemRoot\Temp\valorant.exe" -ArgumentList "--skip-to-install"

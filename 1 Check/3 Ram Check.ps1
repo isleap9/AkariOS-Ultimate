@@ -21,7 +21,7 @@
 Write-Host "Downloading: Cpu Z..."
 
 # download cpuz
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/cpuz.exe" -OutFile "$env:SystemRoot\Temp\cpuz.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/cpuz.exe" -OutFile "$env:SystemRoot\Temp\cpuz.exe"
 
 # start cpuz
 Start-Process "$env:SystemRoot\Temp\cpuz.exe"

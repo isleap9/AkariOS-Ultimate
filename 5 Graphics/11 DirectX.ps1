@@ -21,7 +21,7 @@
 Write-Host "Downloading: DirectX..."
 
 # download 7zip
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/7zip.exe" -OutFile "$env:SystemRoot\Temp\7zip.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/7zip.exe" -OutFile "$env:SystemRoot\Temp\7zip.exe"
 
 # install 7zip
 Start-Process -Wait "$env:SystemRoot\Temp\7zip.exe" -ArgumentList "/S"
@@ -35,7 +35,7 @@ Move-Item -Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\7-Zip\7-
 Remove-Item "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\7-Zip" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
 
 # download directx
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/directx.exe" -OutFile "$env:SystemRoot\Temp\directx.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/directx.exe" -OutFile "$env:SystemRoot\Temp\directx.exe"
 
 # extract directx with 7zip
 & "$env:SystemDrive\Program Files\7-Zip\7z.exe" x "$env:SystemRoot\Temp\directx.exe" -o"$env:SystemRoot\Temp\directx" -y | Out-Null

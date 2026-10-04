@@ -18,59 +18,6 @@
         # SCRIPT SILENT
         $progresspreference = 'silentlycontinue'
 
-# download nvidia control panel
-IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/nvp.appx" -OutFile "$env:SystemRoot\Temp\nvp.appx"
-
-# install nvidia control panel
-Add-AppxPackage -Path "$env:SystemRoot\Temp\nvp.appx" -ErrorAction SilentlyContinue | Out-Null
-
-# create desktop shortcut
-$WshShell = New-Object -comObject WScript.Shell
-$Desktop = (New-Object -ComObject Shell.Application).Namespace('shell:Desktop').Self.Path
-$Shortcut = $WshShell.CreateShortcut("$Desktop\NVIDIA Control Panel.lnk")
-$Shortcut.TargetPath = "shell:appsFolder\NVIDIACorp.NVIDIAControlPanel_56jybvy8sckqj!NVIDIACorp.NVIDIAControlPanel"
-$Shortcut.WorkingDirectory = "shell:appsFolder"
-$Shortcut.Save()
-
-Clear-Host
-
-        Write-Host "1. NVIDIA Settings: On (Recommended)"
-        Write-Host "2. NVIDIA Settings: Default`n"
-        while ($true) {
-        $choice = Read-Host " "
-        if ($choice -match '^[1-2]$') {
-        switch ($choice) {
-        1 {
-
-Clear-Host
-
-# unblock drs files
-$path = "C:\ProgramData\NVIDIA Corporation\Drs"
-Get-ChildItem -Path $path -Recurse | Unblock-File
-
-# set physx to gpu
-cmd /c "reg add `"HKLM\System\ControlSet001\Services\nvlddmkm\Parameters\Global\NVTweak`" /v `"NvCplPhysxAuto`" /t REG_DWORD /d `"0`" /f >nul 2>&1"
-
-# enable developer settings
-cmd /c "reg add `"HKLM\System\ControlSet001\Services\nvlddmkm\Parameters\Global\NVTweak`" /v `"NvDevToolsVisible`" /t REG_DWORD /d `"1`" /f >nul 2>&1"
-
-# allow access to the gpu performance counters to all users
-$subkeys = Get-ChildItem -Path "Registry::HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}" -Force -ErrorAction SilentlyContinue
-foreach($key in $subkeys){
-if ($key -notlike '*Configuration'){
-reg add "$key" /v "RmProfilingAdminOnly" /t REG_DWORD /d "0" /f | Out-Null
-}
-}
-cmd /c "reg add `"HKLM\System\ControlSet001\Services\nvlddmkm\Parameters\Global\NVTweak`" /v `"RmProfilingAdminOnly`" /t REG_DWORD /d `"0`" /f >nul 2>&1"
-
-# disable show notification tray icon
-cmd /c "reg add `"HKCU\Software\NVIDIA Corporation\NvTray`" /v `"StartOnLogin`" /t REG_DWORD /d `"0`" /f >nul 2>&1"
-
-# enable nvidia legacy sharpen
-cmd /c "reg add `"HKLM\SYSTEM\CurrentControlSet\Services\nvlddmkm\FTS`" /v `"EnableGR535`" /t REG_DWORD /d `"0`" /f >nul 2>&1"
-cmd /c "reg add `"HKLM\SYSTEM\ControlSet001\Services\nvlddmkm\Parameters\FTS`" /v `"EnableGR535`" /t REG_DWORD /d `"0`" /f >nul 2>&1"
-cmd /c "reg add `"HKLM\SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\FTS`" /v `"EnableGR535`" /t REG_DWORD /d `"0`" /f >nul 2>&1"
-
 # new folder
 New-Item -Path "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 
@@ -92,8 +39,26 @@ $Shortcut.TargetPath = "$env:SystemDrive\Program Files (x86)\Nvidia Profile Insp
 $Shortcut.WorkingDirectory = "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector"
 $Shortcut.Save()
 
+        Write-Host "SOME GAMES NEED TO BE SET IN THEIR INDIVIDUAL PROFILE`n"
+        Write-Host "NVIDIA RESIZABLE BAR FORCE:`n"
+        Write-Host "1. DEFAULT DRIVER WHITELIST PER GAME (DEFAULT)"
+		Write-Host "2. FORCE ON"
+        Write-Host "3. FORCE OFF"
+		Write-Host "4. TO BIOS`n"
+        while ($true) {
+        $choice = Read-Host " "
+        if ($choice -match '^[1-4]$') {
+        switch ($choice) {
+        1 {
+
+Clear-Host
+
+# unblock drs files
+$path = "C:\ProgramData\NVIDIA Corporation\Drs"
+Get-ChildItem -Path $path -Recurse | Unblock-File
+
 # set config for inspector
-$nipfile = @'
+$DefaultNip = @'
 <?xml version="1.0" encoding="utf-16"?>
 <ArrayOfProfile>
   <Profile>
@@ -290,13 +255,13 @@ $nipfile = @'
   </Profile>
 </ArrayOfProfile>
 '@
-Set-Content -Path "$env:SystemRoot\Temp\inspector.nip" -Value $nipfile -Force
+Set-Content -Path "$env:SystemRoot\Temp\default.nip" -Value $DefaultNip -Force
 
 # import nip
-Start-Process -Wait "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe" -ArgumentList "-silentImport -silent $env:SystemRoot\Temp\inspector.nip"
+Start-Process -Wait "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe" -ArgumentList "-silentImport -silent $env:SystemRoot\Temp\default.nip"
 
-# open nvidiacontrolpanel
-Start-Process "shell:appsFolder\NVIDIACorp.NVIDIAControlPanel_56jybvy8sckqj!NVIDIACorp.NVIDIAControlPanel"
+# open inspector
+Start-Process "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe"
 
 exit
 
@@ -309,70 +274,80 @@ Clear-Host
 $path = "C:\ProgramData\NVIDIA Corporation\Drs"
 Get-ChildItem -Path $path -Recurse | Unblock-File
 
-# revert set physx to gpu
-cmd /c "reg delete `"HKLM\System\ControlSet001\Services\nvlddmkm\Parameters\Global\NVTweak`" /v `"NvCplPhysxAuto`" /f >nul 2>&1"
-
-# revert enable developer settings
-cmd /c "reg delete `"HKLM\System\ControlSet001\Services\nvlddmkm\Parameters\Global\NVTweak`" /v `"NvDevToolsVisible`" /f >nul 2>&1"
-
-# revert allow access to the gpu performance counters to all users
-$subkeys = Get-ChildItem -Path "Registry::HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}" -Force -ErrorAction SilentlyContinue
-foreach($key in $subkeys){
-if ($key -notlike '*Configuration'){
-cmd /c "reg delete `"$key`" /v `"RmProfilingAdminOnly`" /f >nul 2>&1"
-}
-}
-cmd /c "reg delete `"HKLM\System\ControlSet001\Services\nvlddmkm\Parameters\Global\NVTweak`" /v `"RmProfilingAdminOnly`" /f >nul 2>&1"
-
-# revert disable show notification tray icon
-cmd /c "reg delete `"HKCU\Software\NVIDIA Corporation\NvTray`" /f >nul 2>&1"
-
-# revert enable nvidia legacy sharpen
-cmd /c "reg add `"HKLM\SYSTEM\CurrentControlSet\Services\nvlddmkm\FTS`" /v `"EnableGR535`" /t REG_DWORD /d `"1`" /f >nul 2>&1"
-cmd /c "reg add `"HKLM\SYSTEM\ControlSet001\Services\nvlddmkm\Parameters\FTS`" /v `"EnableGR535`" /t REG_DWORD /d `"1`" /f >nul 2>&1"
-cmd /c "reg add `"HKLM\SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\FTS`" /v `"EnableGR535`" /t REG_DWORD /d `"1`" /f >nul 2>&1"
-
-# new folder
-New-Item -Path "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
-
-# download nvidia profile inspector
-IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/inspector.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe"
-
-# create desktop shortcut
-$WshShell = New-Object -comObject WScript.Shell
-$Desktop = (New-Object -ComObject Shell.Application).Namespace('shell:Desktop').Self.Path
-$Shortcut = $WshShell.CreateShortcut("$Desktop\Nvidia Profile Inspector.lnk")
-$Shortcut.TargetPath = "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe"
-$Shortcut.WorkingDirectory = "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector"
-$Shortcut.Save()
-
-# create start menu shortcut
-$WshShell = New-Object -comObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut("$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Nvidia Profile Inspector.lnk")
-$Shortcut.TargetPath = "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe"
-$Shortcut.WorkingDirectory = "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector"
-$Shortcut.Save()
-
 # set config for inspector
-$nipfile = @'
+$ForceOnNip = @'
 <?xml version="1.0" encoding="utf-16"?>
 <ArrayOfProfile>
   <Profile>
     <ProfileName>Base Profile</ProfileName>
-    <Executeables/>
-    <Settings/>
+    <Executables/>
+    <Settings>
+	  <ProfileSetting>
+        <SettingNameInfo>rBAR - Enable</SettingNameInfo>
+        <SettingID>983226</SettingID>
+        <SettingValue>1</SettingValue>
+        <ValueType>Dword</ValueType>
+      </ProfileSetting>  
+    </Settings>
   </Profile>
 </ArrayOfProfile>
 '@
-Set-Content -Path "$env:SystemRoot\Temp\inspector.nip" -Value $nipfile -Force
+Set-Content -Path "$env:SystemRoot\Temp\forceon.nip" -Value $ForceOnNip -Force
 
-# import nip
-Start-Process -Wait "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe" -ArgumentList "-silentImport -silent $env:SystemRoot\Temp\inspector.nip"
+# import nip (rebar setting only)
+Start-Process -Wait "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe" -ArgumentList "-silentImport -mergeImport -silent $env:SystemRoot\Temp\forceon.nip"
 
-# open nvidiacontrolpanel
-Start-Process "shell:appsFolder\NVIDIACorp.NVIDIAControlPanel_56jybvy8sckqj!NVIDIACorp.NVIDIAControlPanel"
+# open inspector
+Start-Process "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe"
 
 exit
 
           }
-        } } else { Write-Host "Invalid input. Please select a valid option (1-2)." } }
+        3 {
+
+Clear-Host
+
+# unblock drs files
+$path = "C:\ProgramData\NVIDIA Corporation\Drs"
+Get-ChildItem -Path $path -Recurse | Unblock-File
+
+# set config for inspector
+$ForceOffNip = @'
+<?xml version="1.0" encoding="utf-16"?>
+<ArrayOfProfile>
+  <Profile>
+    <ProfileName>Base Profile</ProfileName>
+    <Executables/>
+    <Settings>
+	  <ProfileSetting>
+        <SettingNameInfo>rBAR - Enable</SettingNameInfo>
+        <SettingID>983226</SettingID>
+        <SettingValue>0</SettingValue>
+        <ValueType>Dword</ValueType>
+      </ProfileSetting>  
+    </Settings>
+  </Profile>
+</ArrayOfProfile>
+'@
+Set-Content -Path "$env:SystemRoot\Temp\forceoff.nip" -Value $ForceOffNip -Force
+
+# import nip (rebar setting only)
+Start-Process -Wait "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe" -ArgumentList "-silentImport -mergeImport -silent $env:SystemRoot\Temp\forceoff.nip"
+
+# open inspector
+Start-Process "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe"
+
+exit
+
+          }
+        4 {
+
+Clear-Host
+
+# restart to bios
+cmd /c C:\Windows\System32\shutdown.exe /r /fw /t 0
+
+exit
+
+          }
+        } } else { Write-Host "Invalid input. Please select a valid option (1-4)." } }

@@ -21,7 +21,7 @@
 Write-Host "Downloading: Gpu Z..."
 
 # download gpuz
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/gpuz.exe" -OutFile "$env:SystemRoot\Temp\gpuz.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/gpuz.exe" -OutFile "$env:SystemRoot\Temp\gpuz.exe"
 
 # start gpuz
 Start-Process "$env:SystemRoot\Temp\gpuz.exe"

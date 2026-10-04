@@ -24,7 +24,7 @@ Write-Host "GPU 'Power' & 'Power Percent' logging disabled"
 Write-Host "Causes FPS and 1% low issues`n"
 
 # download msi afterburner
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/msiafterburner.exe" -OutFile "$env:SystemRoot\Temp\msiafterburner.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/msiafterburner.exe" -OutFile "$env:SystemRoot\Temp\msiafterburner.exe"
 
 # install msi afterburner
 Start-Process -wait "$env:SystemRoot\Temp\msiafterburner.exe" -ArgumentList "/S"
@@ -3263,7 +3263,7 @@ Set-Content -Path "$env:SystemDrive\Program Files (x86)\RivaTuner Statistics Ser
 # create overlayeditor.cfg for rivatuner
 $OverlayEditorCfg = @"
 [Settings]
-Layout=fr33thy.ovl
+Layout=akarios.ovl
 "@
 Set-Content -Path "$env:SystemDrive\Program Files (x86)\RivaTuner Statistics Server\Plugins\Client\OverlayEditor.cfg" -Value $OverlayEditorCfg -Force
 
@@ -3350,8 +3350,8 @@ OVM4Params=
 "@
 Set-Content -Path "$env:SystemDrive\Program Files (x86)\RivaTuner Statistics Server\Plugins\Client\HotkeyHandler.cfg" -Value $HotkeyHandlerCfg -Force
 
-# create fr33thy.ovl for rivatuner
-$fr33thyovl = @"
+# create akarios.ovl for rivatuner
+$akariosovl = @"
 [Master]
 Implementation=2
 FontFace=Unispace
@@ -4709,7 +4709,7 @@ Size=70
 TextColor=11C511
 
 "@
-Set-Content -Path "$env:SystemDrive\Program Files (x86)\RivaTuner Statistics Server\Plugins\Client\Overlays\fr33thy.ovl" -Value $fr33thyovl -Force
+Set-Content -Path "$env:SystemDrive\Program Files (x86)\RivaTuner Statistics Server\Plugins\Client\Overlays\akarios.ovl" -Value $akariosovl -Force
 
 # create desktopoverlayhost.cfg for rivatuner
 $DesktopOverlayHostCfg = @"

@@ -126,7 +126,7 @@ $stop | ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyConti
 Get-Process | Where-Object { $_.ProcessName -like "*edge*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 
 # download edge installer
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/edge.exe" -OutFile "$env:SystemRoot\Temp\edge.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/edge.exe" -OutFile "$env:SystemRoot\Temp\edge.exe"
 
 # start edge installer
 Start-Process -Wait "$env:SystemRoot\Temp\edge.exe"
@@ -137,7 +137,7 @@ $stop | ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyConti
 Get-Process | Where-Object { $_.ProcessName -like "*edge*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 
 # download edge webview installer
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/edgewebview.exe" -OutFile "$env:SystemRoot\Temp\edgewebview.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/edgewebview.exe" -OutFile "$env:SystemRoot\Temp\edgewebview.exe"
 
 # start edge webview installer
 Start-Process -Wait "$env:SystemRoot\Temp\edgewebview.exe"

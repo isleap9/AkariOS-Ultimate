@@ -21,7 +21,7 @@
 Write-Host "Downloading: OCCT..."
 
 # download occt
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/occt.exe" -OutFile "$env:SystemRoot\Temp\occt.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/occt.exe" -OutFile "$env:SystemRoot\Temp\occt.exe"
 
 # start occt
 Start-Process "$env:SystemRoot\Temp\occt.exe"

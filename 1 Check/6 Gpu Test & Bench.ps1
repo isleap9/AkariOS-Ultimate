@@ -21,7 +21,7 @@
 Write-Host "Downloading: FurMark..."
 
 # download furmark
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/furmark.zip" -OutFile "$env:SystemRoot\Temp\furmark.zip"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/furmark.zip" -OutFile "$env:SystemRoot\Temp\furmark.zip"
 
 # extract files
 Expand-Archive "$env:SystemRoot\Temp\furmark.zip" -DestinationPath "$env:SystemRoot\Temp\furmark" -ErrorAction SilentlyContinue

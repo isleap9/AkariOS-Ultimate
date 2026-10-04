@@ -19,7 +19,7 @@
         $progresspreference = 'silentlycontinue'
 
 # download 7zip
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/7zip.exe" -OutFile "$env:SystemRoot\Temp\7zip.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/7zip.exe" -OutFile "$env:SystemRoot\Temp\7zip.exe"
 
 # install 7zip
 Start-Process -Wait "$env:SystemRoot\Temp\7zip.exe" -ArgumentList "/S"
@@ -113,7 +113,7 @@ Remove-Item "$env:SystemRoot\Temp\nvidiadriver\NvApp\NvConfigGenerator.dll" -For
 Start-Process "$env:SystemRoot\Temp\nvidiadriver\setup.exe" -ArgumentList "-s -noreboot -noeula -clean" -Wait -NoNewWindow
 
 # download nvidia control panel
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/nvp.appx" -OutFile "$env:SystemRoot\Temp\nvp.appx"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/nvp.appx" -OutFile "$env:SystemRoot\Temp\nvp.appx"
 
 # install nvidia control panel
 Add-AppxPackage -Path "$env:SystemRoot\Temp\nvp.appx" -ErrorAction SilentlyContinue | Out-Null
@@ -181,7 +181,7 @@ cmd /c "reg add `"HKLM\SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\FTS
 New-Item -Path "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 
 # download nvidia profile inspector
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/inspector.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/inspector.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Nvidia Profile Inspector\Nvidia Profile Inspector.exe"
 
 # create desktop shortcut
 $WshShell = New-Object -comObject WScript.Shell

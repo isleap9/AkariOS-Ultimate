@@ -24,7 +24,7 @@ Write-Host "Installing: Mouse Movement Recorder...`n"
 New-Item -Path "$env:SystemDrive\Program Files (x86)\Mouse Movement Recorder" -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 
 # download mouse movement recorder
-IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/mousemovementrecorder.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Mouse Movement Recorder\Mouse Movement Recorder.exe"
+IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/mousemovementrecorder.exe" -OutFile "$env:SystemDrive\Program Files (x86)\Mouse Movement Recorder\Mouse Movement Recorder.exe"
 
 # create desktop shortcut
 $WshShell = New-Object -comObject WScript.Shell
