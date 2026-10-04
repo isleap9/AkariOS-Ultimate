@@ -24,7 +24,7 @@ Write-Host "GPU 'Power' & 'Power Percent' logging disabled"
 Write-Host "Causes FPS and 1% low issues`n"
 
 # download msi afterburner
-IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/msiafterburner.exe" -OutFile "$env:SystemRoot\Temp\msiafterburner.exe"
+IWR "https://github.com/FR33THYFR33THY/Ultimate/releases/download/Files/msiafterburner.exe" -OutFile "$env:SystemRoot\Temp\msiafterburner.exe"
 
 # install msi afterburner
 Start-Process -wait "$env:SystemRoot\Temp\msiafterburner.exe" -ArgumentList "/S"
