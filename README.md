@@ -1,4 +1,4 @@
-# Ultimate
+# AkariOS Ultimate
 Windows/PC guide for power users<br>
 Multiple scripts with revert options<br>
 Reboot needed for scripts to apply
@@ -10,10 +10,8 @@ Reboot needed for scripts to apply
 # IWR
 Paste below code into an elevated Administrator PowerShell window
 ```
-iwr 'https://github.com/FR33THYFR33THY/Ultimate/raw/refs/heads/main/IWR.ps1' -useb | iex
+iwr 'https://github.com/isleap9/AkariOS-Ultimate/raw/refs/heads/main/IWR.ps1' -useb | iex
 ```
 
-# Donation 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://botrix.live/p/fr33thy/tip)
-
-# Video
+# Credits
+AkariOS Ultimate is a rebrand of [Ultimate](<https://github.com/FR33THYFR33THY/Ultimate>) by FR33THY, used under the MIT License.

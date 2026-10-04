@@ -7,17 +7,17 @@ Exit}
 $progresspreference = 'silentlycontinue'
 
 # download
-iwr "https://github.com/FR33THYFR33THY/Ultimate/archive/refs/heads/main.zip" -OutFile "$env:SystemRoot\Temp\Ultimate.zip"
+iwr "https://github.com/isleap9/AkariOS-Ultimate/archive/refs/heads/main.zip" -OutFile "$env:SystemRoot\Temp\AkariOS-Ultimate.zip"
 
 # extract
-Expand-Archive -Path "$env:SystemRoot\Temp\Ultimate.zip" -DestinationPath "$env:SystemRoot\Temp\Ultimate" -Force
+Expand-Archive -Path "$env:SystemRoot\Temp\AkariOS-Ultimate.zip" -DestinationPath "$env:SystemRoot\Temp\AkariOS-Ultimate" -Force
 
 # rename
-Rename-Item -Path "$env:SystemRoot\Temp\Ultimate\Ultimate-main" -NewName "Ultimate" -Force
+Rename-Item -Path "$env:SystemRoot\Temp\AkariOS-Ultimate\AkariOS-Ultimate-main" -NewName "AkariOS-Ultimate" -Force
 
 # move
 $Desktop = (New-Object -ComObject Shell.Application).Namespace('shell:Desktop').Self.Path
-Move-Item -Path "$env:SystemRoot\Temp\Ultimate\Ultimate" -Destination "$Desktop" -Force
+Move-Item -Path "$env:SystemRoot\Temp\AkariOS-Ultimate\AkariOS-Ultimate" -Destination "$Desktop" -Force
 
 # allow
 cmd /c "reg add `"HKCR\Applications\powershell.exe\shell\open\command`" /ve /t REG_SZ /d `"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -ExecutionPolicy unrestricted -File \`"`"%1\`"`"`" /f >nul 2>&1"
@@ -25,10 +25,10 @@ cmd /c "reg add `"HKCU\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerS
 cmd /c "reg add `"HKLM\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell`" /v `"ExecutionPolicy`" /t REG_SZ /d `"Unrestricted`" /f >nul 2>&1"
 
 # unblock
-Get-ChildItem -Path "$Desktop\Ultimate" -Recurse | Unblock-File
+Get-ChildItem -Path "$Desktop\AkariOS-Ultimate" -Recurse | Unblock-File
 
 # open
-Start-Process "$Desktop\Ultimate"
+Start-Process "$Desktop\AkariOS-Ultimate"
 
 # exit
 exit
