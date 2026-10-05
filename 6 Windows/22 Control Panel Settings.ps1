@@ -139,6 +139,10 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
 "HideFileExt"=dword:00000000
 
+; show hidden files, folders, and drives
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
+"Hidden"=dword:00000001
+
 ; disable search history
 [HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\SearchSettings]
 "IsDeviceSearchHistoryEnabled"=dword:00000000
@@ -151,9 +155,9 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
 "FolderContentsInfoTip"=dword:00000000
 
-; enable display full path in the title bar
+; disable display full path in the title bar
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState]
-"FullPath"=dword:00000001
+"FullPath"=dword:00000000
 
 ; disable show pop-up description for folder and desktop items
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
@@ -847,12 +851,12 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Control Panel\Desktop]
 "WallPaper"=""
 
-; hide recycle bin from desktop
+; show recycle bin on desktop
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu]
-"{645FF040-5081-101B-9F08-00AA002F954E}"=dword:00000001
+"{645FF040-5081-101B-9F08-00AA002F954E}"=dword:00000000
 
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel]
-"{645FF040-5081-101B-9F08-00AA002F954E}"=dword:00000001
+"{645FF040-5081-101B-9F08-00AA002F954E}"=dword:00000000
 
 ; always hide most used list in start menu
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer]
@@ -914,9 +918,9 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
 "TaskbarAl"=dword:00000000
 
-; disable desktop preview
+; enable select the far corner of the taskbar to show the desktop
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
-"TaskbarSd"=dword:00000000
+"TaskbarSd"=dword:00000001
 
 ; remove chat from taskbar
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
@@ -1257,13 +1261,18 @@ E0,F6,C5,D5,0E,CA,50,00,00
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\CDP]
 "DragTrayEnabled"=dword:00000000
 
-; disable snap window settings
+; snap window settings
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
-"SnapAssist"=dword:00000000
-"DITest"=dword:00000000
+; suggest what i can snap next to a snapped window
+"SnapAssist"=dword:00000001
+; drag a window without dragging all the way to the screen edge
+"DITest"=dword:00000001
+; show snap layouts when dragging a window to the top of the screen
 "EnableSnapBar"=dword:00000000
-"EnableTaskGroups"=dword:00000000
-"EnableSnapAssistFlyout"=dword:00000000
+; show snapped windows when hovering taskbar apps, in task view and alt+tab
+"EnableTaskGroups"=dword:00000001
+; show snap layouts when hovering over the maximize button
+"EnableSnapAssistFlyout"=dword:00000001
 "SnapFill"=dword:00000000
 "JointResize"=dword:00000000
 
@@ -1745,6 +1754,10 @@ Windows Registry Editor Version 5.00
 ; file name extensions
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
 "HideFileExt"=dword:00000001
+
+; hidden files, folders, and drives
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
+"Hidden"=dword:00000002
 
 ; search history
 [HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\SearchSettings]
