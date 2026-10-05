@@ -269,8 +269,82 @@ function New-AkariProgressState {
         done    = $false
         error   = $null
         started = Get-Date
+        # Live console output. A synchronized ArrayList, because a tweak's
+        # Write-Host shim runs on the runspace thread while the UI drains it on
+        # the UI thread. A plain array would need copying to be safe; the
+        # ArrayList is guarded by the same monitor as the rest of the hashtable.
+        #
+        # This exists because the PowerShell success stream is not readable
+        # until EndInvoke: lines written during a run sit in the pipeline's
+        # buffer and appear all at once when it finishes. For a console that is
+        # supposed to show what is happening NOW, that is too late.
+        log     = [System.Collections.ArrayList]::Synchronized(
+            [System.Collections.ArrayList]::new())
     })
     $state
+}
+
+function Add-AkariRunOutput {
+    <#
+        .SYNOPSIS
+        Queues a line of live output from the runspace for the UI to drain.
+        .DESCRIPTION
+        Called by the Write-Host shim inside the runspace. Never throws: a
+        logging failure must not abort the tweak it is describing.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Text
+    )
+
+    try {
+        $state = $global:__akari_state
+        if ($state -and $state.ContainsKey('log')) {
+            $null = $state.log.Add([pscustomobject]@{
+                t = (Get-Date)
+                s = $Text
+            })
+        }
+    } catch {
+    }
+}
+
+function Get-AkariRunOutput {
+    <#
+        .SYNOPSIS
+        Drains queued output lines that have not been read yet.
+        .DESCRIPTION
+        Returns and removes them, so each line is shown exactly once no matter
+        how often the ticker polls. Draining rather than peeking is what keeps
+        the UI thread's copy from growing unbounded during a long tweak.
+    #>
+    [CmdletBinding()]
+    param($Run)
+
+    $out = @()
+    if (-not $Run -or -not $Run.ContainsKey('State')) { return $out }
+
+    $state = $Run.State
+    if (-not $state -or -not $state.ContainsKey('log')) { return $out }
+
+    try {
+        $q = $state.log
+        # Take everything currently queued in one lock, so a line cannot be
+        # added between the count and the removal.
+        [System.Threading.Monitor]::Enter($q.SyncRoot)
+        try {
+            $n = $q.Count
+            for ($i = 0; $i -lt $n; $i++) {
+                $out += $q[0]
+                $q.RemoveAt(0)
+            }
+        } finally {
+            [System.Threading.Monitor]::Exit($q.SyncRoot)
+        }
+    } catch {
+    }
+
+    $out
 }
 
 function Get-AkariTracerSetup {
@@ -342,4 +416,4 @@ if (`$null -ne `$r) { & `$r @args } else { Microsoft.PowerShell.Core\Write-Debug
 
 Export-ModuleMember -Function Get-AkariTrackedCommand, Get-AkariTrackedMap,
     Get-AkariOperationPlan, Get-AkariTracerSetup, New-AkariProgressState,
-    Initialize-AkariCommandScope
+    Add-AkariRunOutput, Get-AkariRunOutput, Initialize-AkariCommandScope

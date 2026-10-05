@@ -79,9 +79,13 @@ function Read-Host {
     }
 
     `$a = `$null
-    if (`$__akMenuState -and
-        (`$__akMenuState.PSObject.Properties.Name -contains 'answer')) {
-        `$a = `$__akMenuState.answer
+    # The state object is a Hashtable, and a hashtable's keys are NOT in
+    # PSObject.Properties - that only lists CLR members. Testing
+    # .PSObject.Properties.Name -contains 'answer' therefore always returns
+    # false, which silently sent an empty answer and made every menu loop spin
+    # until the guard tripped. Keys is the correct test for a hashtable.
+    if (`$__akMenuState -and (`$__akMenuState.Keys -contains 'answer')) {
+        `$a = `$__akMenuState['answer']
     }
 
     if (`$null -eq `$a -or "`$a" -eq '') { return '' }
@@ -105,17 +109,42 @@ function Clear-Host {
 function Write-Host {
     [CmdletBinding()]
     param(
-        [Parameter(ValueFromRemainingArguments = `$true)]
-        `$Object,
-        `$ForegroundColor,
-        `$BackgroundColor
+        # Position=0 is required, not decoration. ValueFromRemainingArguments only
+        # captures POSITIONAL arguments when a position is declared; without it
+        # the parameter stays empty and every Write-Host shim call emitted a blank
+        # string, which is why the footer showed nothing.
+        [Parameter(Position = 0, ValueFromRemainingArguments = `$true)]
+        [object[]]`$Object
     )
-    # Text from a tweak goes to the output stream, which the dispatcher already
-    # collects and shows in the footer's detail band. Routing it through the
-    # cmdlet would try to write to a console that does not exist.
+
+    # A tweak's own output IS the console. The real cmdlet writes to a console
+    # host that does not exist here, so two things happen instead:
+    #
+    #   1. pushed onto the shared queue, which the UI drains on every tick, so
+    #      the line appears while the tweak is still running
+    #   2. returned to the success stream, which the dispatcher collects at the
+    #      end as a complete transcript
+    #
+    # Both are needed. The queue alone would lose the output if the process
+    # died mid-run; the success stream alone would only show it at the end,
+    # which defeats the point of a live console.
+    #
+    # The queue is written inline, not by calling Add-AkariRunOutput, because
+    # that function lives in Tracer.psm1 and no module is imported inside the
+    # runspace. The state hashtable is in scope here - it arrived as this
+    # script's argument - so it is written to directly.
+    foreach (`$o in `$Object) {
+        if (`$null -eq `$o) { continue }
+        `$line = [string]`$o
+        try {
+            `$q = `$__akMenuState['log']
+            if (`$q) { `$null = `$q.Add(`$line) }
+        } catch { }
+        `$line
+    }
 }
 
-# The console preamble is the actual blocker, and it was found by running a
+# The console preamble is the real blocker, and it was found by running a
 # fixture rather than by reading the scripts.
 #
 # All 104 tweaks open with something like:
@@ -124,44 +153,28 @@ function Write-Host {
 #     `$Host.UI.RawUI.BackgroundColor = "Black"
 #     `$Host.PrivateData.ProgressBackgroundColor = "Black"
 #
-# In a runspace with no console host, that throws:
+# In a runspace with no console host, setting WindowTitle throws:
 #
-#     Exception setting "WindowTitle": A command that prompts the user failed
-#     because the host program or the command type does not support user
-#     interaction.
+#     A command that prompts the user failed because the host program or the
+#     command type does not support user interaction.
 #
-# It is a terminating error for that STATEMENT, so the script aborts before it
-# ever reaches its menu. Nothing downstream can work until this is handled, and
-# it hits 104 of 104 scripts.
+# That is a terminating error for the statement, so the script aborts before it
+# ever reaches its menu. It affects 104 of 104 scripts, which makes it the one
+# thing that has to be solved before any tweak can run.
 #
-# `$Host` is an automatic read-only variable and cannot be reassigned, so the
-# shim installs a $Host proxy into the global scope instead. The proxy answers
-# the properties the preamble touches and returns an empty object for everything
-# else, so an unanticipated property read does not become a new failure.
-function global:__AkariHostProxy {
-    [CmdletBinding()]
-    param()
-
-    `$ui = [pscustomobject]@{
-        RawUI      = [pscustomobject]@{
-            WindowTitle = ''
-            WindowSize  = [pscustomobject]@{
-                BufferSize = [pscustomobject]@{ Width = 120; Height = 50 }
-                WindowSize = [pscustomobject]@{ Width = 120; Height = 50 }
-            }
-        }
-        PrivateData = [pscustomobject]@{
-            ProgressBackgroundColor = ''
-            ProgressForegroundColor = ''
-        }
-        Name       = 'ServerRemoteHost'
-    }
-    `$ui
-}
-
-# Installed at global scope so the tweak's own scope sees it. Assigning `$Host is
-# a parse error in some hosts, so the value is set through a variable indirection.
-Set-Variable -Name Host -Value (__AkariHostProxy) -Scope Global -Force
+# `$Host cannot be shimmed. Both obvious routes fail, and both were tried:
+#
+#     Set-Variable -Name Host -Scope Global -Force
+#         -> Cannot overwrite variable Host because it is read-only or constant.
+#     Remove-Variable -Name Host -Scope Global -Force
+#         -> Cannot remove variable Host because it is constant or read-only.
+#
+# The throw comes from a property setter, and the only remaining lever is to make
+# the pipeline tolerate it: the dispatcher runs the script with an
+# ErrorActionPreference that continues, so a failed cosmetic preamble line no
+# longer takes the script down with it. The preamble sets a window title and a
+# background colour. Losing it costs nothing. The registry work that follows is
+# what actually matters.
 "@
 }
 
@@ -195,10 +208,17 @@ function Get-AkariMenuAnswer {
         'OnOff'       { $answer = if ($Card.Applied) { 1 } else { 2 } }
 
         'Value' {
-            if ($Card.Combo -and $Card.Combo.SelectedIndex -ge 0) {
+            # Read the selection off the dropdown, because that is what the user
+            # chose. The Index is the script's own option number, not a position
+            # in the list: Bloatware's real options start at 2 because its option
+            # 1 is Exit.
+            if ($Card.Combo -and $Card.Combo.SelectedItem) {
                 $answer = [int]$Card.Combo.SelectedItem.Tag
-            } elseif ($Card.Options.Count -gt 0) {
-                $answer = [int]$Card.Options[0].Index
+            } else {
+                # No dropdown selection - fall back to the first real option,
+                # skipping Exit so a default can never be "do nothing".
+                $first = @($Card.Options | Where-Object { -not $_.IsExit })
+                if ($first.Count -gt 0) { $answer = [int]$first[0].Index }
             }
         }
 

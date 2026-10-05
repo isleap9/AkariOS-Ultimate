@@ -100,6 +100,79 @@
         </Border>
 
         <!-- ============================================================ -->
+        <!-- Log pane                                                      -->
+        <!-- ============================================================ -->
+        <!--
+            A diagnostics pane, not decoration. The tweak scripts are run in a
+            VM and their output is the only evidence of what actually happened,
+            so it has to be copy-pasteable in full. A status line cannot carry
+            an exception stack.
+
+            Hidden by default: the footer already says what is running. Opened
+            with the Log button, or Ctrl+L.
+        -->
+        <Border x:Name="LogPanel"
+                DockPanel.Dock="Bottom"
+                Visibility="Collapsed"
+                Background="{DynamicResource SurfaceAlt}"
+                BorderBrush="{DynamicResource RuleStrong}"
+                BorderThickness="0,1,0,0">
+            <Grid Margin="14,8,14,10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="200"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="DIAGNOSTIC LOG"
+                               Style="{DynamicResource Text.Caption}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock x:Name="LogHint" Grid.Column="1"
+                               Style="{DynamicResource Text.Micro}"
+                               Foreground="{DynamicResource Dim}"
+                               Margin="12,0,0,0"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <!-- Ctrl+A inside the box selects all; this is the
+                             explicit route for when focus is elsewhere. -->
+                        <Button x:Name="BtnCopyLog" Content="Copy"
+                                Style="{DynamicResource Button}"
+                                Margin="0,0,8,0"/>
+                        <Button x:Name="BtnSaveLog" Content="Save..."
+                                Style="{DynamicResource Button}"
+                                Margin="0,0,8,0"/>
+                        <Button x:Name="BtnClearLog" Content="Clear"
+                                Style="{DynamicResource Button}"
+                                Margin="0,0,8,0"/>
+                        <Button x:Name="BtnHideLog" Content="Close"
+                                Style="{DynamicResource Button}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Read-only and selectable. IsReadOnly keeps the text
+                     uneditable while still allowing a full selection, which
+                     IsEnabled=false would not. -->
+                <TextBox x:Name="LogBox"
+                         Grid.Row="1"
+                         Style="{DynamicResource TextBox}"
+                         FontFamily="{DynamicResource Mono}"
+                         FontSize="{DynamicResource SizeSmall}"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"/>
+            </Grid>
+        </Border>
+
+        <!-- ============================================================ -->
         <!-- Body                                                          -->
         <!-- ============================================================ -->
         <Grid>
@@ -230,6 +303,12 @@
                                    Style="{DynamicResource Text.Micro}"
                                    Margin="0,0,12,0"
                                    VerticalAlignment="Center"/>
+                        <!-- Toggles the diagnostic pane. Present in the footer
+                             rather than only as a shortcut, so the pane is
+                             discoverable without knowing the key exists. -->
+                        <Button x:Name="BtnLog" Content="Log"
+                                Style="{DynamicResource Button}"
+                                Margin="0,0,8,0"/>
                         <Button x:Name="BtnCancel" Content="Cancel"
                                 Style="{DynamicResource Button}"
                                 Margin="0,0,8,0"
