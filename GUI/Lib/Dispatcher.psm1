@@ -89,6 +89,16 @@ function New-AkariRun {
     # The script itself, with NO parameters. This is the whole point: the tweak
     # files are never modified, so a parameter that none of them declare would
     # be a hard error.
+    #
+    # ErrorActionPreference is pinned to Continue on purpose. Every script opens
+    # with a console preamble like `$Host.UI.RawUI.WindowTitle = ...`, and in a
+    # headless runspace that setter throws. Under the default Stop behaviour the
+    # throw is terminating and the script dies before reaching its menu, which
+    # is 104 of 104 scripts failing for a cosmetic reason. $Host is a constant
+    # and cannot be shimmed, so continuing past it is the only route. Errors are
+    # still recorded in the error stream and surfaced in the footer, so nothing
+    # is hidden.
+    $null = $shell.AddScript('$ErrorActionPreference = ''Continue''').AddStatement()
     $null = $shell.AddCommand($Script)
 
     # Every property is declared up front. Under Set-StrictMode a PSCustomObject
