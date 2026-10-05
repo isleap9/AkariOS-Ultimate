@@ -1,5 +1,5 @@
 ﻿<#
-    Main.ps1 â€” AkariOS Ultimate toolbox window.
+    Main.ps1 — AkariOS Ultimate toolbox window.
 
     Launched by "AkariOS Toolbox.cmd", which passes -STA. WPF needs STA, and
     the scripts themselves must run off the UI thread, so nothing heavy happens
@@ -20,7 +20,7 @@
     Building the controls directly is less code and easier to reason about.
 
     Visual language: strictly black and white. State is inversion, weight, rules
-    and glyphs â€” never colour. See Theme.xaml.
+    and glyphs — never colour. See Theme.xaml.
 #>
 
 #Requires -Version 5.1
@@ -311,7 +311,7 @@ function Write-AkariSummary {
 function Reset-AkariFooter {
     $ui.Bar.Value          = 0
     $ui.Bar.IsIndeterminate = $false
-    $ui.BarPct.Text        = 'â€”'
+    $ui.BarPct.Text        = '—'
     $ui.OpDetail.Text      = ''
     $ui.OpCount.Text       = ''
     $ui.BtnCancel.IsEnabled = $false
@@ -780,10 +780,18 @@ function Start-AkariNext {
     # which script, which answer, and what the state was beforehand. Answering
     # with the wrong index is the single most likely failure mode here, and it
     # is invisible unless it is written down.
-    $want = if ($card.Kind -eq 'Run') { 'run once' } else {
-        if ($inv.Answer -eq 0) { 'option 0' }
-        elseif ($card.Applied) { "option $inv.Answer (revert to default)" }
-        else { "option $inv.Answer (apply tweak)" }
+    # Built with -f and an explicit [int], not string interpolation. "$inv.Answer"
+    # interpolates the whole object as "@{Answer=2; TotalOps=2}.Answer", which is
+    # unreadable in a bug report - and this line is exactly what gets pasted.
+    $idx = [int]$inv.Answer
+    $want = if ($card.Kind -eq 'Run') {
+        'run once'
+    } elseif ($idx -eq 0) {
+        'option 0'
+    } elseif ($card.Applied) {
+        'option {0} (turn the tweak ON)' -f $idx
+    } else {
+        'option {0} (turn the tweak OFF)' -f $idx
     }
     Write-AkariLog -Text ("RUN  {0}" -f $card.RelPath) -Level 'cmd'
     Write-AkariLog -Text ("  kind      : {0}" -f $card.Kind)
@@ -855,6 +863,11 @@ function Start-AkariTicker {
     $script:Timer = New-Object System.Windows.Threading.DispatcherTimer
     $script:Timer.Interval = [TimeSpan]::FromMilliseconds(120)
 
+    # Every tick runs inside a try/catch. A DispatcherTimer handler that throws,
+    # with no DispatcherUnhandledException hook attached, takes the whole process
+    # down: no dialog, nothing after the last log line, and the run it was
+    # reporting on is lost. A bug in the progress display must never be able to
+    # cost the user a tweak that has already been applied.
     $script:Timer.Add_Tick({
         if (-not $script:Active) {
             $script:Timer.Stop()
@@ -862,139 +875,200 @@ function Start-AkariTicker {
             return
         }
 
-        $p = Get-AkariRunProgress -Run $script:Active
+        try {
+            $p = Get-AkariRunProgress -Run $script:Active
 
-        # Drain first, and independently of whether progress came back. If a run
-        # has produced output but no counter movement yet, the output still
-        # belongs on screen.
-        try { Write-AkariConsole -Lines (Get-AkariRunOutput -Run $script:Active) } catch { }
+            # Drain first, and independently of whether progress came back. If a
+            # run has produced output but no counter movement yet, the output
+            # still belongs on screen.
+            try { Write-AkariConsole -Lines (Get-AkariRunOutput -Run $script:Active) } catch { }
 
-        if ($null -eq $p) {
-            $script:Timer.Stop(); $script:Timer = $null
-            $script:Active = $null
-            $ui.Bar.IsIndeterminate = $false
-            return
-        }
-
-        # The intercepted command IS "what it is doing", and it is the only
-        # signal for the ~40% of scripts whose Write-Host output is thin. Logged
-        # only when it changes, or a loop repeating one command floods the pane.
-        $nowDoing = ('{0}  {1}' -f $p.Last, $p.Detail).Trim()
-        if ($nowDoing -and $nowDoing -ne $script:LastDoing) {
-            $script:LastDoing = $nowDoing
-            Write-AkariLog -Text ('  > ' + $nowDoing) -Level 'cmd'
-        }
-
-        $elapsed = Format-AkariElapsed -Seconds $p.Elapsed
-
-        if ($p.Total -gt 0) {
-            $pct = [Math]::Min(100, [int](($p.Ticks / $p.Total) * 100))
-            $ui.Bar.IsIndeterminate = $false
-            $ui.Bar.Value = $pct
-            $ui.BarPct.Text = '{0,3}%  {1}' -f $pct, $elapsed
-            $ui.OpCount.Text = 'op {0} / {1}' -f $p.Ticks, $p.Total
-        } else {
-            # No reliable denominator: show a moving bar and be honest about it.
-            $ui.Bar.IsIndeterminate = $true
-            $ui.BarPct.Text = "   --  $elapsed"
-            $ui.OpCount.Text = 'op {0}' -f $p.Ticks
-        }
-
-        if ($p.Detail) {
-            $ui.OpDetail.Text = ('{0}  {1}' -f $p.Last, $p.Detail).Trim()
-        }
-
-        if ($p.Finished) {
-            $run = $script:Active
-            $script:Active = $null
-
-            $card = $script:CurrentCard
-            $result = Wait-AkariRun -Run $run -TimeoutSeconds 30
-
-            # The console preamble throws in a headless runspace and cannot be
-            # shimmed, because $Host is a constant. It sets a window title and a
-            # background colour, so it is tolerated - but only that one message,
-            # and it is filtered rather than counted, because letting it decide
-            # whether a tweak succeeded would be wrong in the other direction: a
-            # cosmetic error would mark every run as failed.
-            $real = @($result.Messages | Where-Object {
-                $_ -notmatch 'WindowTitle' -and
-                $_ -notmatch 'does not support user interaction'
-            })
-
-            # Everything about the finished run is written out verbatim before
-            # any interpretation. The script's own output is included because a
-            # tweak that prints an error and carries on will report success here
-            # while having done nothing - the text is the only sign of that.
-            Write-AkariLog -Text ("END  {0}  ops={1}/{2}  elapsed={3:N1}s  cancelled={4}" -f
-                $card.RelPath, $result.Ticks, $result.Total,
-                $result.Elapsed, [bool]$result.Cancelled) `
-                -Level $(if ($result.Cancelled) { 'warn' } else { 'info' })
-
-            $out = @($result.Output)
-            if ($out.Count -gt 0) {
-                Write-AkariLog -Text "  output ({0} line{1}):" -f `
-                    $out.Count, $(if ($out.Count -eq 1) { '' } else { 's' })
-                foreach ($line in $out) { Write-AkariLog -Text "    $line" }
-            } else {
-                Write-AkariLog -Text '  output: (none)' -Level 'warn'
+            if ($null -eq $p) {
+                $script:Timer.Stop(); $script:Timer = $null
+                $script:Active = $null
+                $ui.Bar.IsIndeterminate = $false
+                return
             }
 
-            if ($result.Messages.Count -gt 0) {
-                Write-AkariLog -Text ("  errors ({0}):" -f $result.Messages.Count)
-                foreach ($m in $result.Messages) { Write-AkariLog -Text "    $m" }
+            # The intercepted command IS "what it is doing", and it is the only
+            # signal for the ~40% of scripts whose Write-Host output is thin.
+            # Logged only when it changes, or a loop repeating one command
+            # floods the pane.
+            $nowDoing = ('{0}  {1}' -f $p.Last, $p.Detail).Trim()
+            if ($nowDoing -and $nowDoing -ne $script:LastDoing) {
+                $script:LastDoing = $nowDoing
+                Write-AkariLog -Text ('  > ' + $nowDoing) -Level 'cmd'
             }
 
-            if ($real.Count -gt 0) {
-                Write-AkariLog -Text ("FAILED with {0} real error{1}" -f $real.Count,
-                    $(if ($real.Count -eq 1) { '' } else { 's' })) -Level 'fail'
+            $elapsed = Format-AkariElapsed -Seconds $p.Elapsed
+
+            if ($p.Total -gt 0) {
+                $pct = [Math]::Min(100, [int](($p.Ticks / $p.Total) * 100))
+                $ui.Bar.IsIndeterminate = $false
+                $ui.Bar.Value = $pct
+                $ui.BarPct.Text = '{0,3}%  {1}' -f $pct, $elapsed
+                $ui.OpCount.Text = 'op {0} / {1}' -f $p.Ticks, $p.Total
             } else {
-                Write-AkariLog -Text 'completed with no real errors'
+                # No reliable denominator: show a moving bar and be honest.
+                $ui.Bar.IsIndeterminate = $true
+                $ui.BarPct.Text = "   --  $elapsed"
+                $ui.OpCount.Text = 'op {0}' -f $p.Ticks
             }
 
-            if ($result.Cancelled) {
-                Write-AkariStatus -Name $card.Display -Count 'cancelled'
-                $ui.OpDetail.Text = 'stopped before finishing'
-                Write-AkariLog -Text 'cancelled by user before finishing' -Level 'warn'
-            } elseif ($real.Count -gt 0) {
-                Write-AkariStatus -Name $card.Display `
-                    -Count ("{0} error{1}" -f $real.Count,
-                            $(if ($real.Count -eq 1) { '' } else { 's' }))
-                $ui.OpDetail.Text = ($real | Select-Object -First 1)
-            } else {
-                # The state is NOT flipped here. The checkbox already set it to
-                # the target value before the run started, and that value is what
-                # was actually executed. Flipping it again would land on the
-                # opposite state from the one the machine is now in - the row
-                # would show "off" straight after a successful apply.
+            if ($p.Detail) {
+                $ui.OpDetail.Text = ('{0}  {1}' -f $p.Last, $p.Detail).Trim()
+            }
+
+            if ($p.Finished) {
+                $run = $script:Active
+                $script:Active = $null
+
+                $card = $script:CurrentCard
+
+                # The completion path carries its own guard, separate from the
+                # one around the whole tick, because by this point it has already
+                # taken ownership of the run: $script:Active is null. A throw
+                # here would otherwise leave the window displaying a run that
+                # nothing is polling, with Cancel still live and the queue frozen.
                 #
-                # The checkbox is resynced from Applied instead, because a Run
-                # card has no checkbox and its own row must not invert: there is
-                # no on/off state for it to represent.
-                if ($card.Check -is [System.Windows.Controls.CheckBox]) {
-                    $card.Check.IsChecked = $card.Applied
+                # Everything below is best-effort REPORTING - the tweak itself has
+                # already finished and its effects are already on the machine - so
+                # failures are logged and the release still happens in finally.
+                try {
+                    $result = Wait-AkariRun -Run $run -TimeoutSeconds 30
+
+                    # Final drain. Lines can be written between the last tick and
+                    # the run ending, and a console that silently drops them is
+                    # worse than one that duplicates them.
+                    try { Write-AkariConsole -Lines (Get-AkariRunOutput -Run $run) } catch { }
+
+                    # The console preamble throws in a headless runspace and
+                    # cannot be shimmed, because $Host is a constant. It sets a
+                    # window title and a background colour, so it is tolerated -
+                    # but only that one message, and it is filtered rather than
+                    # counted, because letting it decide whether a tweak
+                    # succeeded would be wrong in the other direction: a cosmetic
+                    # error would mark every run as failed.
+                    $real = @($result.Messages | Where-Object {
+                        $_ -notmatch 'WindowTitle' -and
+                        $_ -notmatch 'does not support user interaction'
+                    })
+
+                    # Everything about the finished run is written out verbatim
+                    # before any interpretation. The script's own output is
+                    # included because a tweak that prints an error and carries
+                    # on will report success here while having done nothing - the
+                    # text is the only sign of that.
+                    Write-AkariLog -Text ("END  {0}  ops={1}/{2}  elapsed={3:N1}s  cancelled={4}" -f
+                        $card.RelPath, $result.State.ticks, $result.TotalOps,
+                        $result.Elapsed, [bool]$result.Cancelled) `
+                        -Level $(if ($result.Cancelled) { 'warn' } else { 'info' })
+
+                    $out = @($result.Output)
+                    if ($out.Count -gt 0) {
+                        # Parentheses are REQUIRED here. Written as
+                        #   Write-AkariLog -Text "..." -f $a, $b
+                        # the -f is parsed as a PARAMETER NAME in command
+                        # argument mode, not as the format operator, and the call
+                        # dies with "a parameter cannot be found that matches
+                        # parameter name 'f'". That throw used to land on the
+                        # line immediately after a tweak finished, which closed
+                        # the window outright, seconds after a successful apply.
+                        Write-AkariLog -Text ("  output ({0} line{1}):" -f
+                            $out.Count, $(if ($out.Count -eq 1) { '' } else { 's' }))
+                        foreach ($line in $out) { Write-AkariLog -Text "    $line" }
+                    } else {
+                        Write-AkariLog -Text '  output: (none)' -Level 'warn'
+                    }
+
+                    if ($result.Messages.Count -gt 0) {
+                        Write-AkariLog -Text ("  errors ({0}):" -f $result.Messages.Count)
+                        foreach ($m in $result.Messages) { Write-AkariLog -Text "    $m" }
+                    }
+
+                    if ($real.Count -gt 0) {
+                        Write-AkariLog -Text ("FAILED with {0} real error{1}" -f $real.Count,
+                            $(if ($real.Count -eq 1) { '' } else { 's' })) -Level 'fail'
+                    } else {
+                        Write-AkariLog -Text 'completed with no real errors'
+                    }
+
+                    if ($result.Cancelled) {
+                        Write-AkariStatus -Name $card.Display -Count 'cancelled'
+                        $ui.OpDetail.Text = 'stopped before finishing'
+                        Write-AkariLog -Text 'cancelled by user before finishing' -Level 'warn'
+                    } elseif ($real.Count -gt 0) {
+                        Write-AkariStatus -Name $card.Display `
+                            -Count ("{0} error{1}" -f $real.Count,
+                                    $(if ($real.Count -eq 1) { '' } else { 's' }))
+                        $ui.OpDetail.Text = ($real | Select-Object -First 1)
+                    } else {
+                        # The state is NOT flipped here. The checkbox already set
+                        # it to the target value before the run started, and that
+                        # value is what was actually executed. Flipping it again
+                        # would land on the opposite state from the one the
+                        # machine is now in - the row would show "off" straight
+                        # after a successful apply.
+                        #
+                        # The checkbox is resynced from Applied instead, because a
+                        # Run card has no checkbox and its own row must not
+                        # invert: there is no on/off state for it to represent.
+                        if ($card.Check -is [System.Windows.Controls.CheckBox]) {
+                            $card.Check.IsChecked = $card.Applied
+                        }
+                        if ($card.Flags.NeedsReboot) {
+                            $script:RestartSet = $true
+                            $ui.RestartBadge.Visibility = 'Visible'
+                        }
+                        Write-AkariStatus -Name $card.Display -Count 'done'
+                        $ui.OpDetail.Text = ($result.Output | Select-Object -Last 1)
+                        $ui.BarPct.Text = '100%'
+                        $ui.Bar.Value = 100
+                    }
+
+                    Set-AkariCardVisual -Card $card
+                } catch {
+                    # Reported rather than swallowed: this is a bug in the UI, and
+                    # the log is the only way the user can hand it over.
+                    Write-AkariLog -Text ('reporting the finished run failed: ' +
+                        $_.Exception.Message) -Level 'fail'
+                    try {
+                        Write-AkariLog -Text ('  ' + $_.Exception.GetType().FullName) `
+                            -Level 'fail'
+                        Write-AkariLog -Text ('  at Main.ps1 line ' +
+                            $_.InvocationInfo.ScriptLineNumber) -Level 'fail'
+                    } catch { }
+                    try {
+                        Write-AkariStatus -Name $card.Display -Count 'report failed'
+                        $ui.OpDetail.Text = 'the tweak ran; reporting it failed'
+                    } catch { }
+                } finally {
+                    # The release is unconditional. Whatever went wrong above, the
+                    # runspace must be disposed and the next queued tweak must be
+                    # allowed to start.
+                    try { Close-AkariRun -Run $run } catch { }
+                    $ui.BtnCancel.IsEnabled = $false
+
+                    # Start-AkariNext hands off to the next queued tweak, which may
+                    # be this same tick or the next one. Either way the ticker has
+                    # to keep running: it is the only thing polling the run, so
+                    # stopping it here would leave the next tweak running with
+                    # nobody watching. It gets torn down by the guard at the top of
+                    # this handler, on the tick where nothing is active.
+                    try { Start-AkariNext } catch { }
                 }
-                if ($card.Flags.NeedsReboot) {
-                    $script:RestartSet = $true
-                    $ui.RestartBadge.Visibility = 'Visible'
-                }
-                Write-AkariStatus -Name $card.Display -Count 'done'
-                $ui.OpDetail.Text = ($result.Output | Select-Object -Last 1)
-                $ui.BarPct.Text = '100%'
-                $ui.Bar.Value = 100
             }
-
-            Set-AkariCardVisual -Card $card
-            Close-AkariRun -Run $result
-            $ui.BtnCancel.IsEnabled = $false
-
-            # Start-AkariNext hands off to the next queued tweak, which may be
-            # this same tick or the next one. Either way the ticker has to keep
-            # running: it is the only thing polling the run, so stopping it here
-            # would leave the next tweak running with nobody watching. It gets
-            # torn down by the guard at the top of this handler, on the tick
-            # where nothing is active.
-            Start-AkariNext
+        } catch {
+            # Only the progress display can reach here. The running tweak is
+            # deliberately left alone: stopping it would abandon a pipeline that
+            # may be mid-registry-write, and the next tick retries in 120ms.
+            Write-AkariLog -Text ('tick handler failed: ' + $_.Exception.Message) `
+                -Level 'fail'
+            try {
+                Write-AkariLog -Text ('  ' + $_.Exception.GetType().FullName) -Level 'fail'
+                Write-AkariLog -Text ('  at Main.ps1 line ' +
+                    $_.InvocationInfo.ScriptLineNumber) -Level 'fail'
+            } catch { }
         }
     })
 
@@ -1199,23 +1273,27 @@ $ui.BtnClearLog.Add_Click({ Clear-AkariLog })
 # the box is left alone: the TextBox handles it, and selecting the log by
 # accident mid-tweak would be a nuisance.
 #
-# A KeyBinding needs an ICommand, not a delegate - passing the handler directly
-# throws "Cannot convert ... ExecutedRoutedEventHandler to ICommand". So a
-# RoutedCommand is built and its handler attached separately, the same shape as
-# the F5 refresh below.
-$script:CmdLog = New-Object System.Windows.Input.RoutedCommand
+# Two things are required and neither is optional:
+#
+#   a KeyBinding needs an ICommand, so a delegate cannot be passed directly -
+#     it throws "Cannot convert ... ExecutedRoutedEventHandler to ICommand"
+#   a RoutedCommand has no Add_Executed method, so the handler cannot be attached
+#     to the command either - it needs a CommandBinding on the window
+#
+# Same shape as the F5 refresh below.
+$script:CmdLog = New-Object System.Windows.Input.RoutedUICommand
 $null = $script:CmdLog.InputGestures.Add((New-Object System.Windows.Input.KeyGesture(
     [System.Windows.Input.Key]::L,
     [System.Windows.Input.ModifierKeys]::Control)))
 
-$null = $window.InputBindings.Add((New-Object System.Windows.Input.KeyBinding(
-    $script:CmdLog,
-    [System.Windows.Input.Key]::L,
-    [System.Windows.Input.ModifierKeys]::Control)))
-
-$script:CmdLog.Add_Executed({
+$logBinding = New-Object System.Windows.Input.CommandBinding
+$logBinding.Command = $script:CmdLog
+$logBinding.Add_Executed([System.Windows.Input.ExecutedRoutedEventHandler] {
+    param($sender, $e)
+    $e.Handled = $true
     OnLogToggle
 })
+$null = $window.CommandBindings.Add($logBinding)
 
 # Startup banner. Written last so it carries the script count and the elevation
 # state, which are known by this point.
@@ -1241,21 +1319,63 @@ $window.Add_Closing({
 # Last-resort net. A Dispatcher event handler that throws is swallowed by WPF
 # and the window keeps looking alive while doing nothing, which is the hardest
 # kind of bug to report. Routing it into the log means a silent failure becomes
-# a pasteable one. DispatcherUnhandledException is unhandled, so it is recorded
-# and then allowed to continue to the default handler: swallowing it would hide
-# a genuine problem rather than fix it.
-[System.Windows.Threading.Dispatcher]::CurrentDispatcher.add_DispatcherUnhandledException({
-    param($s, $e)
+# a pasteable one.
+#
+# Deliberately defensive. There is no PowerShell event syntax for this event,
+# it has to be attached through reflection, and the reflection is not reliable
+# across hosts - [Dispatcher].GetEvent('DispatcherUnhandledException') returns
+# null here. A net that cannot be attached must not become the reason the tool
+# will not start, so a failure to attach is logged and ignored.
+#
+# e.Handled is left false so the default handler still runs: this records the
+# problem, it does not swallow it.
+try {
+    $dispatcher = [System.Windows.Threading.Dispatcher]::CurrentDispatcher
+    $handler = [System.Windows.Threading.DispatcherUnhandledExceptionEventHandler] {
+        param($s, $e)
 
-    Write-AkariLog -Text 'UNHANDLED UI EXCEPTION' -Level 'fail'
-    Write-AkariLog -Text ("  " + $e.Exception.Message) -Level 'fail'
-    Write-AkariLog -Text ("  " + $e.Exception.GetType().FullName) -Level 'fail'
+        Write-AkariLog -Text 'UNHANDLED UI EXCEPTION' -Level 'fail'
+        Write-AkariLog -Text ("  " + $e.Exception.Message) -Level 'fail'
+        Write-AkariLog -Text ("  " + $e.Exception.GetType().FullName) -Level 'fail'
+        try { Write-AkariLog -Text ("  at " + $e.Exception.StackTrace) -Level 'fail' } catch { }
+        $e.Handled = $false
+    }
+
+    # Attached by invoking the add_ accessor on the live dispatcher. Reflection
+    # on the Dispatcher type is not reliable here - GetType().GetEvent() returns
+    # null for this event - and the hook is the last line of defence between a
+    # bad log line and a dead window, so every route is tried in turn rather than
+    # settling for the first one.
+    $attached = $false
+
     try {
-        Write-AkariLog -Text ("  at " + $e.Exception.StackTrace) -Level 'fail'
+        $dispatcher.add_DispatcherUnhandledException($handler)
+        $attached = $true
     } catch { }
 
-    $e.Handled = $false
-})
+    if (-not $attached) {
+        $ev = [System.Windows.Threading.Dispatcher].GetEvent(
+            'DispatcherUnhandledException',
+            [System.Reflection.BindingFlags]'Public,NonPublic,Instance')
+        if ($ev) {
+            try {
+                $null = $ev.AddEventHandler($dispatcher, $handler)
+                $attached = $true
+            } catch { }
+        }
+    }
+
+    if ($attached) {
+        Write-AkariLog -Text 'note: dispatcher exception hook attached' -Level 'info'
+    } else {
+        Write-AkariLog `
+            -Text 'warning: dispatcher exception hook unavailable - handler try/catch is the only guard' `
+            -Level 'warn'
+    }
+} catch {
+    Write-AkariLog -Text ("note: dispatcher exception hook failed: " + $_.Exception.Message) `
+        -Level 'warn'
+}
 
 # F5 refresh. Neither the key binding nor the command can be declared in loose
 # XAML: XamlReader cannot resolve ApplicationCommands.Refresh from markup, and

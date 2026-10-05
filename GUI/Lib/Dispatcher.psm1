@@ -120,6 +120,7 @@ function New-AkariRun {
         StartedAt   = Get-Date
         FinishedAt  = $null
         Cancelled   = $false
+        Elapsed     = 0
     }
 
     # BeginInvoke returns immediately; the timer in Main.ps1 polls the handle.
@@ -196,6 +197,25 @@ function Wait-AkariRun {
     $Run.FinishedAt = Get-Date
     $Run.ErrorCount = $Run.Shell.Streams.Error.Count
     $Run.Messages   = @($Run.Shell.Streams.Error | ForEach-Object { $_.ToString() })
+
+    # Elapsed, computed here where FinishedAt is known. The console log line
+    # wants it, and a caller recomputing it from StartedAt risks reading
+    # FinishedAt before it is set.
+    $Run.Elapsed = (New-TimeSpan -Start $Run.StartedAt -End $Run.FinishedAt).TotalSeconds
+
+    # Anything the tweak printed but that was never drained by the live console
+    # - a line written after the last poll, for instance - is flushed into the
+    # log queue here so the final transcript is complete.
+    try {
+        if ($Run.State -and $Run.State.ContainsKey('log')) {
+            $q = $Run.State.log
+            foreach ($line in $Run.Output) {
+                if ($null -eq $line) { continue }
+                $s = [string]$line
+                if (-not $q.Contains($s)) { $null = $q.Add($s) }
+            }
+        }
+    } catch { }
 
     # Flag the shared state so the UI's last poll sees the run as complete.
     if ($Run.State) { $Run.State.done = $true }

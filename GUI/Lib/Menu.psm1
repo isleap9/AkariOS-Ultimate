@@ -204,8 +204,12 @@ function Get-AkariMenuAnswer {
 
     switch ($Card.Kind) {
 
-        'ApplyRevert' { $answer = if ($Card.Applied) { 2 } else { 1 } }
-        'OnOff'       { $answer = if ($Card.Applied) { 1 } else { 2 } }
+        # Applied = true means the user wants the TWEAK ON, so the answer is the
+        # option that turns it on. Both of these were previously the other way
+        # round, which made checking a box run the revert branch - visible in a
+        # VM as 5 Theme Black opening regedit.exe when the tweak was applied.
+        'ApplyRevert' { $answer = if ($Card.Applied) { 1 } else { 2 } }
+        'OnOff'       { $answer = if ($Card.Applied) { 2 } else { 1 } }
 
         'Value' {
             # Read the selection off the dropdown, because that is what the user
