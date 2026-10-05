@@ -322,8 +322,11 @@ function Get-AkariRunOutput {
     param($Run)
 
     $out = @()
-    if (-not $Run -or -not $Run.ContainsKey('State')) { return $out }
+    if (-not $Run) { return $out }
 
+    # $Run is a PSCustomObject handle, NOT a hashtable. Calling ContainsKey on
+    # it throws "method not found" under StrictMode, which would have broken the
+    # live console on every single tick. Only the inner state is a hashtable.
     $state = $Run.State
     if (-not $state -or -not $state.ContainsKey('log')) { return $out }
 
