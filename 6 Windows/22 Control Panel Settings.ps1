@@ -744,11 +744,11 @@ Windows Registry Editor Version 5.00
 "ShowStatus"=dword:00000003
 "Transparency"=dword:000000ff
 
-; disable language hotkey
+; language hotkey, switch input language with left alt+shift
 [HKEY_CURRENT_USER\Keyboard Layout\Toggle]
-"Language Hotkey"="3"
-"Hotkey"="3"
-"Layout Hotkey"="3"
+"Language Hotkey"="1"
+"Hotkey"="1"
+"Layout Hotkey"="2"
 
 ; disable calendar events
 [HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search]
