@@ -150,3 +150,15 @@ None.
 - FOUND: Akari.ps1, UI/MainWindow.xaml (modified)
 - FOUND: df495cc, cb0a303 in `git log` on this branch
 - NOTE: plan verify commands unrun (environment), see Deviations
+
+## Orchestrator Verification (post-merge)
+
+The executor could not run PowerShell from its worktree. After the agent returned, the orchestrator ran all five `<automated>` verify commands from 03-01-PLAN.md against the worktree, using `powershell.exe -STA`. All five exited 0 with PASS:
+
+1. Task 1, end-to-end Home landing, background read and CPU card: PASS (groups=CPU,Disk,GPU,Motherboard,RAM,Windows)
+2. Task 1, live Get-Specs regression: PASS
+3. Task 1, static guards (busy guard, no Show-Page in spec completion, composite shape on failure, no HOME collision): PASS
+4. Task 2, six-card content map against fixture data: PASS
+5. Task 2, live Get-Specs regression: PASS
+
+The human-check items (layout, column count, visual look) still need a manual run of the app.

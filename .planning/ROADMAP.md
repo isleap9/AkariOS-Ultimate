@@ -65,6 +65,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. User sees freshly queried specs every time Home is shown without UI blocking
 
 **Plans**: TBD
+- [x] 03-01-PLAN.md
+- [ ] 03-02-PLAN.md
+
 **UI hint**: yes
 
 ### Phase 4: Home Polish & Documentation
@@ -90,5 +93,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Spec Query Engine | 1/1 | Complete | 2026-10-08 |
 | 2. Hardware Spec Cards | 2/2 | Complete    | 2026-10-08 |
-| 3. Home Shell & Live Refresh | TBD | Not started | - |
+| 3. Home Shell & Live Refresh | 1/2 | In Progress | - |
 | 4. Home Polish & Documentation | TBD | Not started | - |
