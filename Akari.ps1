@@ -629,16 +629,73 @@ function Update-Home {
         [void]$Cards.Children.Add($card)
         return
     }
+    $na = 'Not available'
     $s = $script:SpecData.Specs
-    # cpu: model, cores / threads, clock
+
+    # cpu card: model, cores / threads, clock
     $cpu = $s.CPU
     $card = New-Card 'CPU'
     Add-Headline $card $cpu.Model
-    $hasC = ($null -ne $cpu.Cores -and [string]$cpu.Cores -ne 'Not available')
-    $hasT = ($null -ne $cpu.Threads -and [string]$cpu.Threads -ne 'Not available')
-    $cores = if ($hasC -and $hasT) { "$($cpu.Cores) / $($cpu.Threads) threads" } elseif ($hasC) { "$($cpu.Cores)" } elseif ($hasT) { "$($cpu.Threads) threads" } else { 'Not available' }
+    $hasC = ($null -ne $cpu.Cores -and [string]$cpu.Cores -ne $na)
+    $hasT = ($null -ne $cpu.Threads -and [string]$cpu.Threads -ne $na)
+    $cores = if ($hasC -and $hasT) { "$($cpu.Cores) / $($cpu.Threads) threads" } elseif ($hasC) { "$($cpu.Cores)" } elseif ($hasT) { "$($cpu.Threads) threads" } else { $na }
     Add-Row $card 'Cores' $cores
     Add-Row $card 'Speed' (Fmt-Num $cpu.SpeedMHz '0.00' 'GHz' 1000)
+    [void]$Cards.Children.Add($card)
+
+    # gpu card: one block per adapter, divider between blocks
+    $card = New-Card 'GPU'
+    $list = @($s.GPU.Adapters)
+    if (-not $list.Count) { Add-Headline $card $na }
+    for ($i = 0; $i -lt $list.Count; $i++) {
+        $a = $list[$i]
+        if ($i -gt 0) { Add-Divider $card }
+        Add-Headline $card $a.Model
+        Add-Row $card 'VRAM' (Fmt-Num $a.VRAM_GB '0.0' 'GB')
+        Add-Row $card 'Driver' $a.DriverVersion
+        if ([string]$a.Status -ne 'OK') { Add-Row $card 'Status' $a.Status }
+    }
+    [void]$Cards.Children.Add($card)
+
+    # ram card: total, used, free
+    $ram = $s.RAM
+    $card = New-Card 'RAM'
+    Add-Headline $card (Fmt-Num $ram.TotalGB '0.0' 'GB')
+    Add-Row $card 'Used' (Fmt-Num $ram.UsedGB '0.0' 'GB')
+    Add-Row $card 'Free' (Fmt-Num $ram.FreeGB '0.0' 'GB')
+    [void]$Cards.Children.Add($card)
+
+    # disk card: one block per fixed volume, divider between blocks
+    $card = New-Card 'Disk'
+    $list = @($s.Disk.Volumes)
+    if (-not $list.Count) { Add-Headline $card $na }
+    for ($i = 0; $i -lt $list.Count; $i++) {
+        $v = $list[$i]
+        if ($i -gt 0) { Add-Divider $card }
+        $head = [string]$v.Drive
+        if ($v.Label -is [string] -and -not [string]::IsNullOrWhiteSpace($v.Label)) { $head += '  ' + $v.Label }
+        Add-Headline $card $head
+        Add-Row $card 'Free' (Fmt-Num $v.FreeGB '0.0' 'GB')
+        Add-Row $card 'Total' (Fmt-Num $v.TotalGB '0.0' 'GB')
+        Add-Row $card 'File system' $v.FileSystem
+    }
+    [void]$Cards.Children.Add($card)
+
+    # board card: maker + product, bios version and date
+    $mb = $s.Motherboard
+    $card = New-Card 'Board'
+    $parts = @(@($mb.Manufacturer, $mb.Product) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) -and [string]$_ -ne $na })
+    Add-Headline $card $(if ($parts.Count) { $parts -join ' ' } else { $na })
+    Add-Row $card 'BIOS' $mb.BIOSVersion
+    Add-Row $card 'Released' $mb.ReleaseDate
+    [void]$Cards.Children.Add($card)
+
+    # windows card: edition (without the leading Microsoft), version, build
+    $win = $s.Windows
+    $card = New-Card 'Windows'
+    Add-Headline $card ([string]$win.Edition -replace '^Microsoft\s+', '')
+    Add-Row $card 'Version' $win.Version
+    Add-Row $card 'Build' $win.Build
     [void]$Cards.Children.Add($card)
 }
 
