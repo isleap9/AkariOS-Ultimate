@@ -338,7 +338,8 @@ function Get-Specs {
         $bios = Get-CimInstance -ClassName Win32_BIOS -ErrorAction Stop | Select-Object -First 1
         if ($bios) {
             if (Test-SmbiosValue $bios.SMBIOSBIOSVersion) { $biosVersion = $bios.SMBIOSBIOSVersion.Trim(); $mbSuccess++ }
-            if ($bios.ReleaseDate) { $biosDate = $bios.ReleaseDate.ToString('yyyy-MM-dd'); $mbSuccess++ }
+            # smbios date is midnight utc; format in utc with invariant culture so the day and calendar never shift
+            if ($bios.ReleaseDate) { $biosDate = $bios.ReleaseDate.ToUniversalTime().ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture); $mbSuccess++ }
         }
     } catch { }
     $result.Motherboard.Manufacturer = $mbManufacturer
