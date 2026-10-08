@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 #  IWR.ps1 - download, extract and launch AkariOS Ultimate.
 #
 #  Same one-liner delivery as before: paste the URL, get the

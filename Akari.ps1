@@ -21,7 +21,11 @@ if (-not $Root) { $Root = Split-Path -Parent $PSCommandPath }
 foreach ($c in @($Root, (Split-Path -Parent $Root), "$Root\Tweaks")) {
     if ($c -and (Test-Path "$c\UI\MainWindow.xaml") -and (Test-Path "$c\Tweaks")) { $Root = $c; break }
 }
-trap { [void][Windows.MessageBox]::Show("Akari hit an error:`n`n$($_.Exception.Message)`n`n$($_.InvocationInfo.PositionMessage)", 'Akari'); exit }
+$LogFile = "$env:LOCALAPPDATA\Akari\akari.log"
+function Write-ErrLog([string]$m) {
+    try { New-Item (Split-Path $LogFile) -ItemType Directory -Force | Out-Null; Add-Content $LogFile ("[{0}] {1}" -f (Get-Date -Format s), $m) } catch { }
+}
+trap { Write-ErrLog "$($_.Exception.Message) $($_.InvocationInfo.PositionMessage)"; [void][Windows.MessageBox]::Show("Akari hit an error:`n`n$($_.Exception.Message)`n`n$($_.InvocationInfo.PositionMessage)", 'Akari'); exit }
 # remove 'downloaded from the internet' marks so Windows never nags about these files
 Get-ChildItem $Root -Filter *.ps1 -File -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 foreach ($sub in 'Tweaks', 'UI') { Get-ChildItem "$Root\$sub" -Recurse -File -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue }
@@ -373,6 +377,14 @@ $window.Add_Loaded({
     ($Nav.Children | Where-Object { $_.Tag -eq $script:Cat } | Select-Object -First 1).IsChecked = $true
     Add-Log 'Ready.'
     $script:Busy = $false
+})
+# errors inside button handlers: show them in the log drawer (and akari.log) instead of losing them
+$window.Dispatcher.Add_UnhandledException({
+    param($s, $ev)
+    $ev.Handled = $true
+    Write-ErrLog "UI error: $($ev.Exception.Message)"
+    Add-Log "Error: $($ev.Exception.Message)"
+    Set-Busy $false
 })
 $window.Add_Closing({ $timer.Stop() })
 [void]$window.ShowDialog()
