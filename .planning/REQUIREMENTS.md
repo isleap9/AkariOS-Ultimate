@@ -9,9 +9,9 @@
 
 - [x] **SPEC-01**: User sees CPU card with model, core/thread counts, and base speed
 - [x] **SPEC-02**: User sees RAM card with total installed memory and used/free amounts in GB
-- [x] **SPEC-03**: User sees GPU card listing all adapters with model, VRAM, and driver version
-- [x] **SPEC-04**: User sees disk card with per-volume free/total space for fixed drives
-- [x] **SPEC-05**: User sees motherboard + BIOS card with board manufacturer/product, BIOS version, and release date
+- [ ] **SPEC-03**: User sees GPU card listing all adapters with model, VRAM, and driver version
+- [ ] **SPEC-04**: User sees disk card with per-volume free/total space for fixed drives
+- [ ] **SPEC-05**: User sees motherboard + BIOS card with board manufacturer/product, BIOS version, and release date
 - [x] **SPEC-06**: User sees Windows card with edition, friendly version, and full build number (incl. UBR)
 - [ ] **SPEC-07**: User can copy the full spec text to the clipboard from Home
 - [ ] **SPEC-08**: User sees health-at-a-glance indicators (disk-free % / RAM pressure threshold coloring)
@@ -64,9 +64,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | SPEC-01 | Phase 1 | Complete |
 | SPEC-02 | Phase 1 | Complete |
-| SPEC-03 | Phase 2 | Complete |
-| SPEC-04 | Phase 2 | Complete |
-| SPEC-05 | Phase 2 | Complete |
+| SPEC-03 | Phase 2 | Gaps Found |
+| SPEC-04 | Phase 2 | Gaps Found |
+| SPEC-05 | Phase 2 | Gaps Found |
 | SPEC-06 | Phase 1 | Complete |
 | SPEC-07 | Phase 4 | Pending |
 | SPEC-08 | Phase 4 | Pending |
