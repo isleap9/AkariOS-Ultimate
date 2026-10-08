@@ -101,11 +101,40 @@ function Run-Trusted([String]$command) {
 '@
 
 $GetSpecsFunc = @'
+function Test-SmbiosValue {
+    param([string]$Value)
+    if ([string]::IsNullOrWhiteSpace($Value)) { return $false }
+    # common smbios placeholder strings
+    $fillers = @(
+        'To Be Filled By O.E.M.',
+        'Default string',
+        'None',
+        'N/A',
+        'Not Specified',
+        'Not Available',
+        'System Product Name',
+        'System Manufacturer',
+        'System Version',
+        'System Serial Number',
+        'Base Board Version',
+        'Base Board Product',
+        'Base Board Manufacturer',
+        'BIOS Version',
+        'BIOS Date',
+        'x.x',
+        '0'
+    )
+    $trimmed = $Value.Trim()
+    if ($fillers -contains $trimmed) { return $false }
+    return $true
+}
+
 function Get-Specs {
     $result = @{
         CPU = @{ _Status = 'OK' }
         RAM = @{ _Status = 'OK' }
         Windows = @{ _Status = 'OK' }
+        GPU = @{ _Status = 'OK'; Adapters = @() }
     }
 
     # --- CPU ---
@@ -181,6 +210,82 @@ function Get-Specs {
     $result.Windows.Build = $winBuild
     if ($winSuccess -eq 0) { $result.Windows._Status = 'Failed' }
     elseif ($winSuccess -lt $winFields) { $result.Windows._Status = 'Partial' }
+
+    # --- GPU ---
+    $gpuAdapters = @()
+    $gpuFields = 3
+    $gpuSuccess = 0
+    $gpuTotal = 0
+    try {
+        $gpus = @(Get-CimInstance -ClassName Win32_VideoController -ErrorAction Stop)
+        if ($gpus.Count -eq 0) {
+            $result.GPU._Status = 'Failed'
+        } else {
+            # read real vram from display class registry (adapterram is uint32 and caps near 4gb)
+            $regVram = @{}
+            $regMatch = @()
+            try {
+                $regPath = 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}'
+                $regKeys = Get-ChildItem -Path $regPath -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' } | Sort-Object PSChildName
+                foreach ($key in $regKeys) {
+                    $props = Get-ItemProperty -Path $key.PSPath -ErrorAction SilentlyContinue
+                    if (-not $props) { continue }
+                    # windows writes qwMemorySize; qwSize kept as legacy name
+                    $qw = $props.'HardwareInformation.qwMemorySize'
+                    if ($null -eq $qw) { $qw = $props.'HardwareInformation.qwSize' }
+                    # some drivers store the size as reg_binary
+                    if ($qw -is [byte[]]) {
+                        if ($qw.Length -ge 8) { $qw = [BitConverter]::ToInt64($qw, 0) } else { $qw = $null }
+                    }
+                    if ($null -ne $qw -and $qw -gt 0) {
+                        $regVram[$key.PSChildName] = $qw
+                        if ($props.MatchingDeviceId) { $regMatch += ,@{ Id = [string]$props.MatchingDeviceId; Bytes = $qw } }
+                    }
+                }
+            } catch { }
+
+            for ($i = 0; $i -lt $gpus.Count; $i++) {
+                $gpu = $gpus[$i]
+                $adapter = @{ Model = 'Not available'; VRAM_GB = 'Not available'; DriverVersion = 'Not available'; Status = 'OK' }
+                $gpuTotal += $gpuFields
+
+                if ($gpu.Name) { $adapter.Model = $gpu.Name.Trim(); $gpuSuccess++ }
+
+                $vramBytes = $gpu.AdapterRAM
+                # 4294967295 (0xFFFFFFFF) or 4293918720 (0xFFF00000) mean the real size did not fit
+                $vramCapped = ($vramBytes -eq 4294967295 -or $vramBytes -ge 4GB -or $vramBytes -ge 4293918720)
+                if ($vramCapped) {
+                    $regBytes = $null
+                    # match registry key by pnp device id first, then by index
+                    if ($gpu.PNPDeviceID) {
+                        foreach ($m in $regMatch) {
+                            if ($gpu.PNPDeviceID.StartsWith($m.Id, [StringComparison]::OrdinalIgnoreCase)) { $regBytes = $m.Bytes; break }
+                        }
+                    }
+                    if ($null -eq $regBytes) {
+                        $regKey = '{0:D4}' -f $i
+                        if ($regVram.ContainsKey($regKey)) { $regBytes = $regVram[$regKey] }
+                    }
+                    if ($null -ne $regBytes) { $vramBytes = $regBytes; $vramCapped = $false }
+                }
+                if (-not $vramCapped -and $vramBytes -gt 0) {
+                    $adapter.VRAM_GB = [math]::Round($vramBytes / 1GB, 1)
+                    $gpuSuccess++
+                }
+
+                if ($gpu.DriverVersion) { $adapter.DriverVersion = $gpu.DriverVersion; $gpuSuccess++ }
+
+                if ($gpu.Status -and $gpu.Status -ne 'OK') { $adapter.Status = $gpu.Status }
+
+                $gpuAdapters += ,$adapter
+            }
+        }
+    } catch {
+        $result.GPU._Status = 'Failed'
+    }
+    $result.GPU.Adapters = $gpuAdapters
+    if ($gpuSuccess -eq 0 -and $gpuTotal -gt 0) { $result.GPU._Status = 'Failed' }
+    elseif ($gpuSuccess -lt $gpuTotal) { $result.GPU._Status = 'Partial' }
 
     return $result
 }
