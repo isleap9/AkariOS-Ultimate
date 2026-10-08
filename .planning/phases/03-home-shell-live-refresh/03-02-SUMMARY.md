@@ -165,3 +165,7 @@ None.
 - FOUND: Akari.ps1 (modified)
 - FOUND: cd2a7a2, c6f000c on this branch (`git rev-list --count ef6614a..HEAD` = 2)
 - NOTE: plan verify commands unrun (environment), see Deviations
+
+## Orchestrator Verification (post-merge)
+
+The executor could not run PowerShell. After it returned, the orchestrator ran all four 03-02 `<automated>` verify commands, plus the five 03-01 commands as a regression, against the worktree with `powershell.exe -STA`. All 9 exited 0 with PASS.
