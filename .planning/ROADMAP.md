@@ -45,12 +45,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User sees motherboard manufacturer/product, BIOS version, and release date
   4. Null/filler SMBIOS strings are filtered to "Not available"
 
-**Plans**: 2 plans
+**Plans**: 2/2 plans executed
 **Wave 1**
 - [x] 02-PLAN.md
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-02-PLAN.md — gap closure: BIOS release date in UTC + invariant culture (CR-01), 0 GB free (WR-01), label not counted in Disk status (WR-02)
+- [x] 02-02-PLAN.md — gap closure: BIOS release date in UTC + invariant culture (CR-01), 0 GB free (WR-01), label not counted in Disk status (WR-02)
 
 ### Phase 3: Home Shell & Live Refresh
 
@@ -89,6 +89,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Spec Query Engine | 1/1 | Complete | 2026-10-08 |
-| 2. Hardware Spec Cards | 1/1 | In Progress | - |
+| 2. Hardware Spec Cards | 2/2 | In Progress | - |
 | 3. Home Shell & Live Refresh | TBD | Not started | - |
 | 4. Home Polish & Documentation | TBD | Not started | - |
