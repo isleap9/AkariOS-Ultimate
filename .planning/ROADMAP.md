@@ -45,8 +45,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User sees motherboard manufacturer/product, BIOS version, and release date
   4. Null/filler SMBIOS strings are filtered to "Not available"
 
-**Plans**: TBD
+**Plans**: 2 plans
 - [x] 02-PLAN.md
+- [ ] 02-02-PLAN.md — gap closure: BIOS release date in UTC + invariant culture (CR-01), 0 GB free (WR-01), label not counted in Disk status (WR-02)
 
 ### Phase 3: Home Shell & Live Refresh
 
