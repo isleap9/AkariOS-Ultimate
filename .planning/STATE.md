@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 02
 current_phase_name: Hardware Spec Cards
-status: executing
-stopped_at: Phase 1 complete
-last_updated: "2026-10-08T14:06:09.444Z"
+status: verifying
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-10-08T14:13:24.675Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution started
-state_head: 36a10a1e45251947e4f8db71c58e04c7590388bb
+state_head: 01c2a30a7379d8b6554c3ed0d2fe603f9d58b3b4
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 milestone_name: milestone
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-08)
 
 Phase: 02 (Hardware Spec Cards) — EXECUTING
 Plan: 1 of 1
-Status: Executing Phase 02
+Status: Phase complete — ready for verification
 Last activity: 2026-10-08 — Phase 02 execution started
 
 Progress: [███░░░░░░░] 25%
@@ -55,6 +55,11 @@ Progress: [███░░░░░░░] 25%
 - Trend: N/A
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 02 P02 | 5 min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -67,6 +72,9 @@ Recent decisions affecting current work:
 - Card grid layout chosen over matching existing tweak rows
 - Live refresh on every Home show
 - Show all five spec groups + edition/build only
+- [Phase 02]: VRAM fallback reads HardwareInformation.qwMemorySize (qwSize legacy) and treats NVIDIA 0xFFF00000 as capped
+- [Phase 02]: Registry VRAM key matched by MatchingDeviceId first, index fallback
+- [Phase 02]: Invoke-Code -ResultVar fixed for PS 5.1: empty completed input collection + read ResultCollection in tick
 
 ### Pending Todos
 
@@ -84,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-10-08T15:12:00.000Z
-Stopped at: Phase 1 complete
-Resume file: C:/Users/isleap/Documents/GitHub/AkariOS-Ultimate/.planning/phases/01-spec-query-engine/01-SUMMARY.md
+Last session: 2026-10-08T14:13:24.656Z
+Stopped at: Completed 02-02-PLAN.md
+Resume file: None

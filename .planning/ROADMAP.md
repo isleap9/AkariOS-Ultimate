@@ -20,6 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Spec Query Engine
+
 **Goal**: Reliable background queries for CPU, RAM, and Windows specs with per-field fallback
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
@@ -29,9 +30,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User sees total RAM and used/free amounts computed from PhysicalMemory sum
   3. User sees Windows edition, friendly version, and full build number (incl. UBR)
   4. Individual fields that fail to query show "Not available" instead of blank or error
+
 **Plans**: 1
 
 ### Phase 2: Hardware Spec Cards
+
 **Goal**: GPU, disk, and motherboard/BIOS cards with hardware-diversity handling
 **Mode:** mvp
 **Depends on**: Phase 1
@@ -41,9 +44,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User sees per-volume free/total space for fixed drives only
   3. User sees motherboard manufacturer/product, BIOS version, and release date
   4. Null/filler SMBIOS strings are filtered to "Not available"
+
 **Plans**: TBD
+- [x] 02-PLAN.md
 
 ### Phase 3: Home Shell & Live Refresh
+
 **Goal**: Home as default landing with card grid, live refresh, and navigation
 **Mode:** mvp
 **Depends on**: Phase 2
@@ -53,10 +59,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User sees specs arranged in a fluid card grid matching the existing dark theme
   3. User sees a friendly hostname/manufacturer header on Home
   4. User sees freshly queried specs every time Home is shown without UI blocking
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 4: Home Polish & Documentation
+
 **Goal**: Copy-to-clipboard, health indicators, and project documentation
 **Mode:** mvp
 **Depends on**: Phase 3
@@ -65,6 +73,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. User can copy the full spec text to the clipboard from Home
   2. User sees health-at-a-glance indicators (disk-free % / RAM pressure threshold coloring)
   3. README documents the AkariOS-Ultimate project including the Home page feature
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -76,6 +85,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Spec Query Engine | 1/1 | Complete | 2026-10-08 |
-| 2. Hardware Spec Cards | TBD | Not started | - |
+| 2. Hardware Spec Cards | 1/1 | In Progress | - |
 | 3. Home Shell & Live Refresh | TBD | Not started | - |
 | 4. Home Polish & Documentation | TBD | Not started | - |
