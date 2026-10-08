@@ -31,11 +31,13 @@ Get-ChildItem $Root -Filter *.ps1 -File -ErrorAction SilentlyContinue | Unblock-
 foreach ($sub in 'Tweaks', 'UI') { Get-ChildItem "$Root\$sub" -Recurse -File -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue }
 $script:Tweaks = [System.Collections.Generic.List[object]]::new()
 $script:RowCache   = @{}
-$script:Cat    = 'Windows'
+$script:Cat    = 'Home'
 $script:Busy   = $false
 $script:Job    = $null
 $script:Queue  = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
 $script:SpecData = $null
+$script:SpecJob = $null
+$script:SpecPending = $false
 $PrioKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl'
 
 function Add-Tweak {
@@ -356,9 +358,30 @@ function Get-Specs {
 }
 '@
 
+$HostIdentityFunc = @'
+function Get-HostIdentity {
+    $m = 'Not available'
+    $mdl = 'Not available'
+    try {
+        # computer maker and model for the home header
+        $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop | Select-Object -First 1
+        if ($cs) {
+            if (Test-SmbiosValue $cs.Manufacturer) { $m = $cs.Manufacturer.Trim() }
+            if (Test-SmbiosValue $cs.Model) { $mdl = $cs.Model.Trim() }
+        }
+    } catch { }
+    return @{ Manufacturer = $m; Model = $mdl }
+}
+'@
+
+# composite read run by the home page: a good read emits a hashtable with a Specs key, a throwing read emits a string
+$SpecReadCode = $GetSpecsFunc + "`n" + $HostIdentityFunc + "`n" + @'
+try { @{ Specs = Get-Specs; Host = Get-HostIdentity } } catch { $_.Exception.Message }
+'@
+
 # ---- window
 $window = [Windows.Markup.XamlReader]::Parse((Get-Content "$Root\UI\MainWindow.xaml" -Raw))
-foreach ($n in 'Nav', 'Search', 'Heading', 'Tuner', 'SvcTuner', 'SvcCur', 'Rows', 'Page', 'Log', 'Hex', 'Dec', 'Logo') { Set-Variable $n $window.FindName($n) }
+foreach ($n in 'Nav', 'Search', 'Heading', 'Tuner', 'SvcTuner', 'SvcCur', 'Rows', 'Page', 'Log', 'Hex', 'Dec', 'Logo', 'HomePanel', 'HostName', 'HostSub', 'Cards') { Set-Variable $n $window.FindName($n) }
 
 $logoPath = "$Root\Assets\AkariLogo.png"
 if (Test-Path $logoPath) {
@@ -450,6 +473,7 @@ function Update-Row($t) {
 
 function Show-Page {
     $q = $Search.Text.Trim()
+    $onHome = (-not $q -and $script:Cat -eq 'Home')
     $Rows.Children.Clear()
     if ($q) {
         $Heading.Text = "Results for `"$q`""
@@ -461,17 +485,21 @@ function Show-Page {
     $adv = (-not $q -and $script:Cat -eq 'Advanced')
     $Tuner.Visibility = if ($adv) { 'Visible' } else { 'Collapsed' }
     $SvcTuner.Visibility = $Tuner.Visibility
+    $HomePanel.Visibility = if ($onHome) { 'Visible' } else { 'Collapsed' }
+    $Heading.Visibility = if ($onHome) { 'Collapsed' } else { 'Visible' }
     foreach ($t in $list) {
         if (-not $script:RowCache.ContainsKey($t.Id)) { $script:RowCache[$t.Id] = New-Row $t }
         [void]$Rows.Children.Add($script:RowCache[$t.Id])
         Update-Row $t
     }
-    if (-not $list.Count -and -not $adv) {
+    if (-not $list.Count -and -not $adv -and -not $onHome) {
         $msg = [Windows.Controls.TextBlock]::new()
         $msg.Text = if ($q) { 'No scripts match.' } else { 'Nothing here yet.' }
         $msg.Foreground = $window.FindResource('Mu')
         [void]$Rows.Children.Add($msg)
     }
+    # render the last values (or loading) first, then read fresh specs in the background
+    if ($onHome) { Update-Home; Start-SpecRead }
 }
 
 # ---- running actions in a background runspace
@@ -501,11 +529,168 @@ function Invoke-Code([string]$code, [string]$label, $meta = $null, [string]$Resu
     }
 }
 
+# ---- home page (spec cards)
+function Fmt-Num($v, [string]$fmt, [string]$unit, [double]$scale = 1) {
+    # the 'Not available' sentinel is a string: pass it through with no unit
+    if ($null -eq $v -or $v -is [string]) { return $v }
+    return ($v / $scale).ToString($fmt, [Globalization.CultureInfo]::InvariantCulture) + " $unit"
+}
+
+function New-Card([string]$title) {
+    $card = [Windows.Controls.Border]::new()
+    $card.Width = 240
+    $card.Background = $window.FindResource('S1')
+    $card.BorderBrush = $window.FindResource('Bd')
+    $card.BorderThickness = [Windows.Thickness]::new(1)
+    $card.CornerRadius = [Windows.CornerRadius]::new(5)
+    $card.Padding = [Windows.Thickness]::new(16, 12, 16, 12)
+    $card.Margin = [Windows.Thickness]::new(0, 0, 8, 8)
+    $sp = [Windows.Controls.StackPanel]::new()
+    $tb = [Windows.Controls.TextBlock]::new()
+    $tb.Text = $title
+    $tb.FontSize = 12
+    $tb.FontWeight = [Windows.FontWeights]::SemiBold
+    $tb.Foreground = $window.FindResource('Mu')
+    $tb.Margin = [Windows.Thickness]::new(0, 0, 0, 4)
+    [void]$sp.Children.Add($tb)
+    $card.Child = $sp
+    return $card
+}
+
+function Add-Loading($card) {
+    $tb = [Windows.Controls.TextBlock]::new()
+    $tb.Text = 'Loading' + [string][char]0x2026
+    $tb.FontSize = 13
+    $tb.Foreground = $window.FindResource('Mu')
+    [void]$card.Child.Children.Add($tb)
+}
+
+function Add-Headline($card, [string]$text) {
+    $tb = [Windows.Controls.TextBlock]::new()
+    $tb.Text = $text
+    $tb.FontSize = 15
+    $tb.FontWeight = [Windows.FontWeights]::SemiBold
+    $tb.Foreground = $window.FindResource($(if ($text -eq 'Not available') { 'Mu' } else { 'Tx' }))
+    $tb.TextWrapping = [Windows.TextWrapping]::Wrap
+    $tb.Margin = [Windows.Thickness]::new(0, 0, 0, 8)
+    [void]$card.Child.Children.Add($tb)
+}
+
+function Add-Row($card, [string]$label, [string]$value) {
+    $sp = $card.Child
+    $first = (@($sp.Children | Where-Object { $_ -is [Windows.Controls.Grid] }).Count -eq 0)
+    $g = [Windows.Controls.Grid]::new()
+    $g.Margin = [Windows.Thickness]::new(0, $(if ($first) { 0 } else { 4 }), 0, 0)
+    $c0 = [Windows.Controls.ColumnDefinition]::new(); $c0.Width = [Windows.GridLength]::new(72)
+    $c1 = [Windows.Controls.ColumnDefinition]::new(); $c1.Width = [Windows.GridLength]::new(1, [Windows.GridUnitType]::Star)
+    [void]$g.ColumnDefinitions.Add($c0); [void]$g.ColumnDefinitions.Add($c1)
+    $l = [Windows.Controls.TextBlock]::new()
+    $l.Text = $label
+    $l.Width = 72
+    $l.FontSize = 12
+    $l.Foreground = $window.FindResource('Mu')
+    $l.VerticalAlignment = [Windows.VerticalAlignment]::Top
+    $v = [Windows.Controls.TextBlock]::new()
+    $v.Text = $value
+    $v.FontSize = 13
+    $v.Foreground = $window.FindResource($(if ($value -eq 'Not available') { 'Mu' } else { 'Tx' }))
+    $v.TextWrapping = [Windows.TextWrapping]::Wrap
+    [Windows.Controls.Grid]::SetColumn($v, 1)
+    [void]$g.Children.Add($l); [void]$g.Children.Add($v)
+    [void]$sp.Children.Add($g)
+}
+
+function Add-Divider($card) {
+    $d = [Windows.Controls.Border]::new()
+    $d.Height = 1
+    $d.Background = $window.FindResource('Bd')
+    $d.Margin = [Windows.Thickness]::new(0, 12, 0, 12)
+    [void]$card.Child.Children.Add($d)
+}
+
+function New-FailedSpecs {
+    $na = 'Not available'
+    return @{
+        CPU = @{ _Status = 'Failed'; Model = $na; Cores = $na; Threads = $na; SpeedMHz = $na }
+        RAM = @{ _Status = 'Failed'; TotalGB = $na; UsedGB = $na; FreeGB = $na }
+        Windows = @{ _Status = 'Failed'; Edition = $na; Version = $na; Build = $na }
+        GPU = @{ _Status = 'Failed'; Adapters = @() }
+        Disk = @{ _Status = 'Failed'; Volumes = @() }
+        Motherboard = @{ _Status = 'Failed'; Manufacturer = $na; Product = $na; BIOSVersion = $na; ReleaseDate = $na }
+    }
+}
+
+function Update-Home {
+    $HostName.Text = $env:COMPUTERNAME
+    $Cards.Children.Clear()
+    if ($null -eq $script:SpecData) {
+        # first read of the session has not finished yet
+        $card = New-Card 'CPU'; Add-Loading $card
+        [void]$Cards.Children.Add($card)
+        return
+    }
+    $s = $script:SpecData.Specs
+    # cpu: model, cores / threads, clock
+    $cpu = $s.CPU
+    $card = New-Card 'CPU'
+    Add-Headline $card $cpu.Model
+    $hasC = ($null -ne $cpu.Cores -and [string]$cpu.Cores -ne 'Not available')
+    $hasT = ($null -ne $cpu.Threads -and [string]$cpu.Threads -ne 'Not available')
+    $cores = if ($hasC -and $hasT) { "$($cpu.Cores) / $($cpu.Threads) threads" } elseif ($hasC) { "$($cpu.Cores)" } elseif ($hasT) { "$($cpu.Threads) threads" } else { 'Not available' }
+    Add-Row $card 'Cores' $cores
+    Add-Row $card 'Speed' (Fmt-Num $cpu.SpeedMHz '0.00' 'GHz' 1000)
+    [void]$Cards.Children.Add($card)
+}
+
+function Start-SpecRead {
+    # one read in flight at a time
+    if ($script:SpecJob) { return }
+    # a tweak is running: defer the read until it finishes
+    if ($script:Busy) { $script:SpecPending = $true; return }
+    $rs = [runspacefactory]::CreateRunspace()
+    $rs.Open()
+    $ps = [powershell]::Create()
+    $ps.Runspace = $rs
+    $resultCollection = [System.Management.Automation.PSDataCollection[object]]::new()
+    [void]$ps.AddScript($SpecReadCode)
+    # ps 5.1 cannot bind the generic BeginInvoke overload with $null input, pass an empty completed collection
+    $inputCollection = [System.Management.Automation.PSDataCollection[object]]::new()
+    $inputCollection.Complete()
+    $script:SpecJob = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke($inputCollection, $resultCollection); ResultCollection = $resultCollection }
+    $script:SpecPending = $false
+}
+
 $timer = [Windows.Threading.DispatcherTimer]::new()
 $timer.Interval = [TimeSpan]::FromMilliseconds(150)
 $timer.Add_Tick({
     $m = $null
     while ($script:Queue.TryDequeue([ref]$m)) { Add-Log $m }
+    # home spec read finished: store the composite and redraw only the cards
+    $sj = $script:SpecJob
+    if ($sj -and $sj.Handle.IsCompleted) {
+        $had = ($null -ne $script:SpecData)
+        $ok = $false
+        $msg = $null
+        try {
+            [void]$sj.Ps.EndInvoke($sj.Handle)
+            $result = $sj.ResultCollection
+            if ($null -ne $result -and $result.Count -gt 0) {
+                $last = $result[$result.Count - 1]
+                if ($last -is [hashtable] -and $last.ContainsKey('Specs')) { $script:SpecData = $last; $ok = $true }
+                else { $msg = [string]$last }
+            } else { $msg = 'no result returned' }
+        } catch { $msg = $_.Exception.Message }
+        foreach ($err in $sj.Ps.Streams.Error) { Add-Log "Error: $($err.ToString())" }
+        $sj.Ps.Dispose(); $sj.Rs.Dispose()
+        $script:SpecJob = $null
+        if (-not $ok) {
+            if (-not $msg) { $msg = 'no result returned' }
+            if (-not $had) { $script:SpecData = @{ Specs = New-FailedSpecs; Host = @{ Manufacturer = 'Not available'; Model = 'Not available' } } }
+            $tail = if ($had) { ' Showing last known values.' } else { ' Switch to another page and back to Home to try again.' }
+            Add-Log "Specs: Read failed ($msg).$tail"
+        }
+        Update-Home
+    }
     $j = $script:Job
     if ($j -and $j.Handle.IsCompleted) {
         try {
@@ -525,6 +710,8 @@ $timer.Add_Tick({
         Set-Busy $false
         Read-Svc
         Show-Page
+        # a home read was requested while the tweak ran: start it now
+        if ($script:SpecPending) { Start-SpecRead }
     }
 })
 $timer.Start()
@@ -564,11 +751,21 @@ $Rows.AddHandler([Windows.Controls.Primitives.ButtonBase]::ClickEvent, [Windows.
 })
 
 # ---- sidebar
-foreach ($c in 'Check', 'Refresh', 'Setup', 'Installers', 'Graphics', 'Windows', 'Hardware', 'Advanced') {
+foreach ($c in 'Home', 'Check', 'Refresh', 'Setup', 'Installers', 'Graphics', 'Windows', 'Hardware', 'Advanced') {
     $rb = [Windows.Controls.RadioButton]::new()
     $rb.Content = $c; $rb.Tag = $c; $rb.GroupName = 'nav'
     $rb.Style = $window.FindResource('Nav')
     [void]$Nav.Children.Add($rb)
+    if ($c -eq 'Home') {
+        # thin divider under home (not a nav item)
+        $dv = [Windows.Controls.Border]::new()
+        $dv.Height = 1
+        $dv.Margin = [Windows.Thickness]::new(8, 8, 8, 8)
+        $dv.Background = $window.FindResource('Bd')
+        $dv.IsHitTestVisible = $false
+        $dv.Focusable = $false
+        [void]$Nav.Children.Add($dv)
+    }
 }
 $Nav.AddHandler([Windows.Controls.Primitives.ToggleButton]::CheckedEvent, [Windows.RoutedEventHandler] {
     param($s, $ev)

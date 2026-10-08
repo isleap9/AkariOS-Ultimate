@@ -205,6 +205,18 @@
         <StackPanel x:Name="Page" Margin="16,14">
           <TextBlock x:Name="Heading" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,10"/>
 
+          <!-- Home page: host header + spec card grid -->
+          <StackPanel x:Name="HomePanel" Visibility="Collapsed">
+            <DockPanel x:Name="HomeHeader" Margin="0,0,0,16">
+              <!-- right side reserved for the Phase 4 copy button -->
+              <StackPanel>
+                <TextBlock x:Name="HostName" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource Tx}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="HostSub" FontSize="13" Foreground="{DynamicResource Mu}" Margin="0,4,0,0" Visibility="Collapsed" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+            </DockPanel>
+            <WrapPanel x:Name="Cards" Orientation="Horizontal"/>
+          </StackPanel>
+
           <!-- Win32PrioritySeparation tuner (Advanced page) -->
           <Border x:Name="Tuner" Visibility="Collapsed" Background="{DynamicResource S1}" BorderBrush="{DynamicResource Bd}"
                   BorderThickness="1" CornerRadius="5" Padding="14,12" Margin="0,0,0,10">
