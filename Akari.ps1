@@ -565,12 +565,13 @@ function Add-Loading($card) {
     [void]$card.Child.Children.Add($tb)
 }
 
-function Add-Headline($card, [string]$text) {
+function Add-Headline($card, [string]$text, [string]$brushKey = 'Tx') {
     $tb = [Windows.Controls.TextBlock]::new()
     $tb.Text = $text
     $tb.FontSize = 15
     $tb.FontWeight = [Windows.FontWeights]::SemiBold
-    $tb.Foreground = $window.FindResource($(if ($text -eq 'Not available') { 'Mu' } else { 'Tx' }))
+    # the not available sentinel is always muted, whatever brush the caller asked for
+    $tb.Foreground = $window.FindResource($(if ($text -eq 'Not available') { 'Mu' } else { $brushKey }))
     $tb.TextWrapping = [Windows.TextWrapping]::Wrap
     $tb.Margin = [Windows.Thickness]::new(0, 0, 0, 8)
     [void]$card.Child.Children.Add($tb)
@@ -623,10 +624,19 @@ function New-FailedSpecs {
 function Update-Home {
     $HostName.Text = $env:COMPUTERNAME
     $Cards.Children.Clear()
+    # only the card grid and the maker/model line dim while a read is in flight or waiting out a tweak
+    $dim = ($null -ne $script:SpecJob -or $script:SpecPending)
+    $Cards.Opacity = if ($dim) { 0.6 } else { 1 }
+    $HostSub.Opacity = $Cards.Opacity
     if ($null -eq $script:SpecData) {
-        # first read of the session has not finished yet
-        $card = New-Card 'CPU'; Add-Loading $card
-        [void]$Cards.Children.Add($card)
+        # first read of the session has not finished yet: every card shows the placeholder
+        $HostSub.Text = ''
+        $HostSub.ToolTip = $null
+        $HostSub.Visibility = 'Collapsed'
+        foreach ($title in 'CPU', 'GPU', 'RAM', 'Disk', 'Board', 'Windows') {
+            $card = New-Card $title; Add-Loading $card
+            [void]$Cards.Children.Add($card)
+        }
         return
     }
     $na = 'Not available'
@@ -635,7 +645,7 @@ function Update-Home {
     # cpu card: model, cores / threads, clock
     $cpu = $s.CPU
     $card = New-Card 'CPU'
-    Add-Headline $card $cpu.Model
+    if ($cpu._Status -eq 'Failed') { Add-Headline $card $na 'Mu' } else { Add-Headline $card $cpu.Model }
     $hasC = ($null -ne $cpu.Cores -and [string]$cpu.Cores -ne $na)
     $hasT = ($null -ne $cpu.Threads -and [string]$cpu.Threads -ne $na)
     $cores = if ($hasC -and $hasT) { "$($cpu.Cores) / $($cpu.Threads) threads" } elseif ($hasC) { "$($cpu.Cores)" } elseif ($hasT) { "$($cpu.Threads) threads" } else { $na }
@@ -645,12 +655,14 @@ function Update-Home {
 
     # gpu card: one block per adapter, divider between blocks
     $card = New-Card 'GPU'
+    $failed = ($s.GPU._Status -eq 'Failed')
     $list = @($s.GPU.Adapters)
-    if (-not $list.Count) { Add-Headline $card $na }
+    # zero adapters: headline only, no rows and no dividers
+    if (-not $list.Count) { Add-Headline $card $na 'Mu' }
     for ($i = 0; $i -lt $list.Count; $i++) {
         $a = $list[$i]
         if ($i -gt 0) { Add-Divider $card }
-        Add-Headline $card $a.Model
+        if ($failed) { Add-Headline $card $na 'Mu' } else { Add-Headline $card $a.Model }
         Add-Row $card 'VRAM' (Fmt-Num $a.VRAM_GB '0.0' 'GB')
         Add-Row $card 'Driver' $a.DriverVersion
         if ([string]$a.Status -ne 'OK') { Add-Row $card 'Status' $a.Status }
@@ -660,21 +672,23 @@ function Update-Home {
     # ram card: total, used, free
     $ram = $s.RAM
     $card = New-Card 'RAM'
-    Add-Headline $card (Fmt-Num $ram.TotalGB '0.0' 'GB')
+    if ($ram._Status -eq 'Failed') { Add-Headline $card $na 'Mu' } else { Add-Headline $card (Fmt-Num $ram.TotalGB '0.0' 'GB') }
     Add-Row $card 'Used' (Fmt-Num $ram.UsedGB '0.0' 'GB')
     Add-Row $card 'Free' (Fmt-Num $ram.FreeGB '0.0' 'GB')
     [void]$Cards.Children.Add($card)
 
     # disk card: one block per fixed volume, divider between blocks
     $card = New-Card 'Disk'
+    $failed = ($s.Disk._Status -eq 'Failed')
     $list = @($s.Disk.Volumes)
-    if (-not $list.Count) { Add-Headline $card $na }
+    # zero volumes: headline only, no rows and no dividers
+    if (-not $list.Count) { Add-Headline $card $na 'Mu' }
     for ($i = 0; $i -lt $list.Count; $i++) {
         $v = $list[$i]
         if ($i -gt 0) { Add-Divider $card }
         $head = [string]$v.Drive
         if ($v.Label -is [string] -and -not [string]::IsNullOrWhiteSpace($v.Label)) { $head += '  ' + $v.Label }
-        Add-Headline $card $head
+        if ($failed) { Add-Headline $card $na 'Mu' } else { Add-Headline $card $head }
         Add-Row $card 'Free' (Fmt-Num $v.FreeGB '0.0' 'GB')
         Add-Row $card 'Total' (Fmt-Num $v.TotalGB '0.0' 'GB')
         Add-Row $card 'File system' $v.FileSystem
@@ -685,7 +699,7 @@ function Update-Home {
     $mb = $s.Motherboard
     $card = New-Card 'Board'
     $parts = @(@($mb.Manufacturer, $mb.Product) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) -and [string]$_ -ne $na })
-    Add-Headline $card $(if ($parts.Count) { $parts -join ' ' } else { $na })
+    if ($mb._Status -eq 'Failed') { Add-Headline $card $na 'Mu' } else { Add-Headline $card $(if ($parts.Count) { $parts -join ' ' } else { $na }) }
     Add-Row $card 'BIOS' $mb.BIOSVersion
     Add-Row $card 'Released' $mb.ReleaseDate
     [void]$Cards.Children.Add($card)
@@ -693,17 +707,38 @@ function Update-Home {
     # windows card: edition (without the leading Microsoft), version, build
     $win = $s.Windows
     $card = New-Card 'Windows'
-    Add-Headline $card ([string]$win.Edition -replace '^Microsoft\s+', '')
+    if ($win._Status -eq 'Failed') { Add-Headline $card $na 'Mu' } else { Add-Headline $card ([string]$win.Edition -replace '^Microsoft\s+', '') }
     Add-Row $card 'Version' $win.Version
     Add-Row $card 'Build' $win.Build
     [void]$Cards.Children.Add($card)
+
+    # header maker / model, resolved from the read already in hand (no second query)
+    $d = $script:SpecData
+    $hm = $d.Host.Manufacturer
+    $hd = $d.Host.Model
+    # smbios filler fallback: one filler value discards the whole system pair for the board pair
+    if ($hm -eq $na -or $hd -eq $na -or [string]::IsNullOrWhiteSpace([string]$hm) -or [string]::IsNullOrWhiteSpace([string]$hd)) {
+        $hm = $d.Specs.Motherboard.Manufacturer
+        $hd = $d.Specs.Motherboard.Product
+    }
+    $hparts = @(@($hm, $hd) | Where-Object { $_ -and [string]$_ -ne $na })
+    if ($hparts.Count -gt 0) {
+        $sep = ' ' + [string][char]0x00B7 + ' '
+        $HostSub.Text = ($hparts -join $sep)
+        $HostSub.ToolTip = $HostSub.Text
+        $HostSub.Visibility = 'Visible'
+    } else {
+        $HostSub.Text = ''
+        $HostSub.ToolTip = $null
+        $HostSub.Visibility = 'Collapsed'
+    }
 }
 
 function Start-SpecRead {
     # one read in flight at a time
     if ($script:SpecJob) { return }
     # a tweak is running: defer the read until it finishes
-    if ($script:Busy) { $script:SpecPending = $true; return }
+    if ($script:Busy) { $script:SpecPending = $true; Set-HomeDim; return }
     $rs = [runspacefactory]::CreateRunspace()
     $rs.Open()
     $ps = [powershell]::Create()
@@ -715,6 +750,14 @@ function Start-SpecRead {
     $inputCollection.Complete()
     $script:SpecJob = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke($inputCollection, $resultCollection); ResultCollection = $resultCollection }
     $script:SpecPending = $false
+    Set-HomeDim
+}
+
+function Set-HomeDim {
+    # the page drew before the read started: fade the earlier values now (a first-load placeholder stays at full opacity)
+    if ($null -eq $script:SpecData -or -not $Cards) { return }
+    $Cards.Opacity = 0.6
+    $HostSub.Opacity = 0.6
 }
 
 $timer = [Windows.Threading.DispatcherTimer]::new()
