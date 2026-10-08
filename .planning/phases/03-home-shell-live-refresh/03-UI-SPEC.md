@@ -1,7 +1,8 @@
 ---
 phase: "3"
 slug: "home-shell-live-refresh"
-status: draft
+status: approved
+reviewed_at: "2026-10-08"
 shadcn_initialized: false
 preset: none
 created: "2026-10-08"
@@ -234,21 +235,42 @@ It must **not** start when the page redraws automatically after a tweak finishes
 
 ## UI Considerations
 
-Applicable state considerations resolved: 9 covered, 2 backstop, 0 unresolved.
+> Resolved by the UI-consideration probe after checker approval (2026-10-08): 7 elements and 46 applicable considerations. Result: 23 resolved (explicit), 2 resolved (backstop), 21 dismissed with a reason, 0 unresolved. The copy for empty and error states is in the Copywriting Contract; the rows below refer to that copy instead of repeating it.
 
-| Category | Element(s) | Status | Resolution / Reason |
-|----------|------------|--------|---------------------|
-| loading | Spec cards (first visit) | ✅ covered | On first Home show of a session, each card shows its title and `Loading…` in Mu until the first read completes |
-| loading | Spec cards (later visits) | ✅ covered | On later Home shows, the previous values stay visible at 0.6 opacity until fresh values replace them in one pass, and nothing is cleared |
-| loading | Home header | ✅ covered | The computer name shows immediately at launch, and the Maker · Model line stays hidden until the first read completes |
-| error | Spec cards | ✅ covered | A failed read never leaves a card on `Loading…`. Earlier values are kept, or Failed-group cards are shown, and one `Specs: Read failed (…)` line is logged (see Copywriting) |
-| partial | Spec cards | ✅ covered | Fields that failed show `Not available` in Mu, while the other fields in the same card show normally |
-| empty | GPU / Disk cards with zero items | ✅ covered | A GPU or Disk group with no adapters or volumes renders a card whose headline reads `Not available` with no rows |
-| zero-one-many | GPU adapters, disk volumes | ✅ covered | One item renders as a single block with no divider. Many items stack inside one card, separated by a 1px Bd divider with 12px above and below. |
-| overflow | Card grid | ✅ covered | Cards wrap into as many 240px columns as fit (2 at minimum window width, 3 at default). Extra height scrolls vertically in the existing page scroller, and there is never a horizontal scrollbar. |
-| populated | Card grid | ✅ covered | Six cards appear in the order CPU, GPU, RAM, Disk, Board, Windows, and cards in the same row share the tallest card's height |
-| long-text | GPU/CPU/board model names, field values | 🧪 backstop | Long model names and values wrap inside the 240px card and never clip or push the card wider; labels stay on one line in the 72px column |
-| long-text | Maker · Model header line | 🧪 backstop | A long maker/model line is cut off with an ellipsis on one line, and hovering shows the full text in a tooltip |
+| ID | Element | Category | Status | Verification | Resolution / Reason |
+|----|---------|----------|--------|--------------|---------------------|
+| E1 | Sidebar nav | populated | resolved | explicit | `Home` is the first nav item, checked on launch, followed by a 1px `Bd` divider that cannot be clicked or focused, then Check … Advanced unchanged |
+| E1 | Sidebar nav | empty, loading, error, partial, zero-one-many | dismissed | — | Static nav item with no data source, so it cannot be empty, loading, failed or plural |
+| E1 | Sidebar nav | overflow, long-text | dismissed | — | Fixed 4-character label `Home`, so no long text is possible |
+| E2 | Home header | overflow | resolved | explicit | `HostName` and `HostSub` are single-line with `TextTrimming=CharacterEllipsis` and never wrap or widen the page |
+| E2 | Home header | long-text | resolved | backstop | `{ statement: "A long Maker · Model line is cut off with an ellipsis on one line and hovering shows the full text in a tooltip", verification: backstop }` |
+| E3 | Spec card grid | empty | resolved | explicit | The grid always renders exactly six cards, so it is never empty. A group with no data uses `Not available` (Copywriting). |
+| E3 | Spec card grid | loading | resolved | explicit | First Home show of a session: each card shows its title and then `Loading…` in `Mu`. Later shows: previous values stay at `Opacity=0.6` until the new read replaces them in one pass. |
+| E3 | Spec card grid | error | resolved | explicit | A failed or crashed read never leaves a card on `Loading…`. Earlier values are kept at full opacity, or Failed-group cards are shown, and one `Specs: Read failed (…)` line is logged |
+| E3 | Spec card grid | populated | resolved | explicit | Six cards in the order CPU, GPU, RAM, Disk, Board, Windows. Cards in the same row share the tallest card's height. |
+| E3 | Spec card grid | partial | resolved | explicit | A card whose group `_Status` is `Partial` shows `Not available` for the failed fields and normal values for the rest |
+| E3 | Spec card grid | overflow | resolved | explicit | Cards wrap into as many 240px columns as fit (2 at MinWidth 820, 3 at 1000). Extra height scrolls vertically in the existing page scroller, and there is never a horizontal scrollbar. |
+| E3 | Spec card grid | zero-one-many | dismissed | — | The card count is fixed at six, and plurality applies only to the items inside a card (see E4) |
+| E4 | GPU / Disk items | empty | resolved | explicit | A GPU or Disk group with zero items renders its card with the headline `Not available` and no rows |
+| E4 | GPU / Disk items | loading | resolved | explicit | Same as E3 loading: `Loading…` on the first visit, then dimmed previous items while refreshing |
+| E4 | GPU / Disk items | error | resolved | explicit | A Failed group renders the Failed-group look (headline `Not available` in `Mu`) |
+| E4 | GPU / Disk items | populated | resolved | explicit | Each adapter or volume is its own block: a headline line plus field rows |
+| E4 | GPU / Disk items | partial | resolved | explicit | Inside an item block, a missing field shows `Not available` and the other fields are unaffected |
+| E4 | GPU / Disk items | zero-one-many | resolved | explicit | One item renders as a single block with no divider. Many items stack in one card, separated by `Border Height=1 Background=Bd Margin=0,12,0,12`, with no divider before the first item or after the last. |
+| E4 | GPU / Disk items | overflow | resolved | explicit | With many items the card grows taller (the row matches its height) and the page scrolls vertically. Items are never cut off. |
+| E5 | Field rows | empty | resolved | explicit | A field whose value is `Not available` shows exactly `Not available` in `Mu` with no unit (never `Not available GB`) |
+| E5 | Field rows | loading | resolved | explicit | During the first load, rows are replaced by the single `Loading…` line |
+| E5 | Field rows | error | resolved | explicit | In a Failed group, rows are still listed with `Not available` values (GPU/Disk with zero items show no rows) |
+| E5 | Field rows | populated | resolved | explicit | Values use the invariant-culture formats `0.0 GB` and `0.00 GHz` with a single-space unit separator. The CPU `Cores` row follows the rule for partial data. The GPU `Status` row appears only when Status is not OK. |
+| E5 | Field rows | partial | resolved | explicit | A CPU `Cores` row with only one known value shows `8` or `16 threads`, and with neither shows `Not available` |
+| E5 | Field rows | overflow | resolved | explicit | Values wrap inside the `*` column and labels stay on one line in the 72px column. Card width stays 240. |
+| E5 | Field rows | long-text | resolved | backstop | `{ statement: "Long CPU/GPU/board model names and field values wrap inside the 240px card and never clip or push the card wider; labels stay on one line", verification: backstop }` |
+| E5 | Field rows | zero-one-many | dismissed | — | Each card has a fixed set of rows. The one conditional row (GPU `Status`) is covered under populated. |
+| E6 | Search box | empty | resolved | explicit | With Home selected and an empty search, the Home panel shows, `Heading` is collapsed, `Rows` is empty, and `Nothing here yet.` does not appear |
+| E6 | Search box | populated | resolved | explicit | Typing on Home hides the Home panel and shows `Results for "{query}"` with the matching tweak rows. Clearing the search shows Home again with the last values and starts one refresh. |
+| E6 | Search box | loading, error, partial, overflow, zero-one-many | dismissed | — | Search results are the existing tweak-search behavior, which Phase 3 does not change. Only the Home show/hide when the search is empty is new. |
+| E7 | Read failure | error | resolved | explicit | A read that throws or returns nothing writes one log-drawer line in the format given in the Copywriting Contract, and the cards follow E3 error |
+| E7 | Read failure | empty, loading, populated, partial, overflow, zero-one-many | dismissed | — | E7 is a state transition, not a surface. Its visible effects are covered by the E3 and E4 rows. |
 
 ---
 
@@ -262,12 +284,12 @@ Applicable state considerations resolved: 9 covered, 2 backstop, 0 unresolved.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: FLAG (12/13 label-value step is intentional, and contrast also relies on Mu/Tx)
+- [x] Dimension 5 Spacing: FLAG (md 12px mirrors the existing Tuner vertical padding)
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-10-08 (2 non-blocking FLAGs accepted)
