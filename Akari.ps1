@@ -308,7 +308,8 @@ function Get-Specs {
                 if ($disk.VolumeName) { $vol.Label = $disk.VolumeName; $diskSuccess++ }
                 if ($disk.FileSystem) { $vol.FileSystem = $disk.FileSystem; $diskSuccess++ }
                 if ($disk.Size -gt 0) { $vol.TotalGB = [math]::Round($disk.Size / 1GB, 1); $diskSuccess++ }
-                if ($null -ne $disk.FreeSpace -and $disk.FreeSpace -gt 0) { $vol.FreeGB = [math]::Round($disk.FreeSpace / 1GB, 1); $diskSuccess++ }
+                # 0 bytes free is a real reading (full disk); only null means not reported
+                if ($null -ne $disk.FreeSpace) { $vol.FreeGB = [math]::Round($disk.FreeSpace / 1GB, 1); $diskSuccess++ }
 
                 $diskVolumes += ,$vol
             }
