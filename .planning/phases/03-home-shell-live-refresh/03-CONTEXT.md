@@ -39,6 +39,10 @@ Covers SHELL-01, SHELL-02, SHELL-03, REFR-01. Copy-to-clipboard, health coloring
 - **D-15:** Search works as today on Home — typing shows tweak results; clearing search returns to Home.
 - **D-16:** Specs re-read **any time Home appears**: launch, clicking Home, and clearing search back to Home. (Avoid re-triggering from the job-completion `Show-Page` call into an endless refresh loop.)
 
+### Clarified During Planning (2026-10-08)
+- **D-17:** Home header fallback follows the **UI-SPEC literal rule**: if *either* `Win32_ComputerSystem` Manufacturer or Model is SMBIOS filler (`Test-SmbiosValue` fails), the *entire* system pair is discarded in favour of the motherboard Manufacturer/Product pair. Resolves the wording conflict against D-12, which read "when system maker/model are filler" (both). Then, within whichever pair is chosen, if exactly one value is valid show just that one with no dot; if both are filler, `HostSub` is Collapsed so only the computer name shows. Verified live candidate on this host: `ASUSTeK COMPUTER INC. · TUF GAMING B550-PLUS`.
+- **D-18:** `Get-Specs` stays byte-for-byte unchanged. Computer-name / maker-model data arrives through a **composite wrapper** — a new here-string returning `@{ Specs = Get-Specs; Host = Get-HostIdentity }` — preserving the exact six-group contract (`CPU,Disk,GPU,Motherboard,RAM,Windows`) that Phase 2's verify command asserts.
+
 ### Claude's Discretion
 - Exact card width, padding, spacing, and font sizes (within the existing theme).
 - Number formatting (GB decimals, GHz vs MHz) and which secondary fields appear per card, as long as Phase 1–2 fields are all shown.
