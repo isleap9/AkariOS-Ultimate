@@ -103,7 +103,7 @@ Card content, from top to bottom:
 | CPU | `CPU` | `CPU.Model` | `Cores` → `{Cores} / {Threads} threads` · `Speed` → `{SpeedMHz/1000:0.00} GHz` |
 | GPU | `GPU` | per adapter: `Model` | `VRAM` → `{VRAM_GB:0.0} GB` · `Driver` → `{DriverVersion}` · `Status` → `{Status}` (**only when Status ≠ 'OK'**) |
 | RAM | `RAM` | `{TotalGB:0.0} GB` | `Used` → `{UsedGB:0.0} GB` · `Free` → `{FreeGB:0.0} GB` |
-| Disk | `Disk` | per volume: `{Drive}` plus two spaces and `{Label}` when Label is not empty (e.g. `C:  Windows`) | `Free` → `{FreeGB:0.0} GB` · `Total` → `{TotalGB:0.0} GB` · `File system` → `{FileSystem}` |
+| Disk | `Disk` | system drive only (`$env:SystemDrive`, user change 2026-10-08; other fixed volumes are read but not shown): `{Drive}` plus two spaces and `{Label}` when Label is not empty (e.g. `C:  Windows`) | `Free` → `{FreeGB:0.0} GB` · `Total` → `{TotalGB:0.0} GB` · `File system` → `{FileSystem}` |
 | Board | `Board` | `{Manufacturer} {Product}`. If only one is available, show just that one. If neither, show `Not available`. | `BIOS` → `{BIOSVersion}` · `Released` → `{ReleaseDate}` (already `yyyy-MM-dd`) |
 | Windows | `Windows` | `Edition`, with a leading `Microsoft ` removed for display only (e.g. `Windows 11 Pro`) | `Version` → `{Version}` · `Build` → `{Build}` |
 

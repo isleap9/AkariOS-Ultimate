@@ -677,10 +677,10 @@ function Update-Home {
     Add-Row $card 'Free' (Fmt-Num $ram.FreeGB '0.0' 'GB')
     [void]$Cards.Children.Add($card)
 
-    # disk card: one block per fixed volume, divider between blocks
+    # disk card: system drive only (the read still returns every fixed volume)
     $card = New-Card 'Disk'
     $failed = ($s.Disk._Status -eq 'Failed')
-    $list = @($s.Disk.Volumes)
+    $list = @(@($s.Disk.Volumes) | Where-Object { [string]$_.Drive -eq $env:SystemDrive })
     # zero volumes: headline only, no rows and no dividers
     if (-not $list.Count) { Add-Headline $card $na 'Mu' }
     for ($i = 0; $i -lt $list.Count; $i++) {
