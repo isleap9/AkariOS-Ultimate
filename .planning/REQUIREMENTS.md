@@ -18,13 +18,13 @@
 
 ### Shell & Navigation
 
-- [ ] **SHELL-01**: User lands on the Home page by default on app launch
-- [ ] **SHELL-02**: User sees specs arranged in a fluid card grid matching the existing dark theme
-- [ ] **SHELL-03**: User sees a friendly hostname/manufacturer header on Home
+- [x] **SHELL-01**: User lands on the Home page by default on app launch
+- [x] **SHELL-02**: User sees specs arranged in a fluid card grid matching the existing dark theme
+- [x] **SHELL-03**: User sees a friendly hostname/manufacturer header on Home
 
 ### Refresh & Robustness
 
-- [ ] **REFR-01**: User sees freshly queried specs every time Home is shown (background query with loading/placeholder state, UI never blocks)
+- [x] **REFR-01**: User sees freshly queried specs every time Home is shown (background query with loading/placeholder state, UI never blocks)
 - [x] **REFR-02**: User sees "Not available" for individual fields that fail to query instead of a blank card or error
 
 ### Documentation
@@ -70,10 +70,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SPEC-06 | Phase 1 | Complete |
 | SPEC-07 | Phase 4 | Pending |
 | SPEC-08 | Phase 4 | Pending |
-| SHELL-01 | Phase 3 | Pending |
-| SHELL-02 | Phase 3 | Pending |
-| SHELL-03 | Phase 3 | Pending |
-| REFR-01 | Phase 3 | Pending |
+| SHELL-01 | Phase 3 | Complete |
+| SHELL-02 | Phase 3 | Complete |
+| SHELL-03 | Phase 3 | Complete |
+| REFR-01 | Phase 3 | Complete |
 | REFR-02 | Phase 1 | Complete |
 | DOC-01 | Phase 4 | Pending |
 

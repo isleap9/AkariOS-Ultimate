@@ -20,20 +20,19 @@ The Home page shows accurate, live system specs at a glance — if the specs are
 - ✓ Toggle state persistence via `%LOCALAPPDATA%\Akari\state.json` — existing
 - ✓ Remote bootstrap via `IWR.ps1` one-liner and execution-policy helper `AllowScripts.cmd` — existing
 - ✓ Built-in Advanced-page tuners (priority separation + SvcHost threshold) — existing
+- ✓ Home page shows CPU details (model, cores, speed) — Phase 3
+- ✓ Home page shows memory/RAM (total, used/free) — Phase 3
+- ✓ Home page shows graphics/GPU (model, VRAM, driver version where available) — Phase 3
+- ✓ Home page shows disk/storage, narrowed to the Windows system drive only (C:) at the user's request — Phase 3
+- ✓ Home page shows motherboard + BIOS (board model, BIOS version/date) — Phase 3
+- ✓ Home page shows Windows edition + build — Phase 3
+- ✓ Home page is the default landing tab on launch — Phase 3
+- ✓ Home specs refresh live every time Home is shown, off the UI thread — Phase 3
+- ✓ Home layout uses a card grid (CPU, GPU, RAM, Disk, Board, Windows) under a hostname + maker/model header — Phase 3
 
 ### Active
 
-- [ ] Home page shows CPU details (model, cores, speed)
-- [ ] Home page shows memory/RAM (total, used/free)
-- [ ] Home page shows graphics/GPU (model, VRAM, driver version where available)
-- [ ] Home page shows disk/storage (drives, free space)
-- [ ] Home page shows motherboard + BIOS (board model, BIOS version/date)
-- [ ] Home page shows Windows edition + build (e.g. Windows 11 Pro 23H2, build number)
-- [ ] Home page is the default landing tab on launch
-
-*Phases 1–2 built the background spec reading for all groups above; they become ✓ once Phase 3 shows them on Home.*
-- [ ] Home specs refresh live every time Home is shown
-- [ ] Home layout uses a card grid (System, CPU, RAM, GPU, Disk, Windows cards)
+*(none open for v1.0; Phase 4 covers polish and documentation)*
 
 ### Out of Scope
 
@@ -47,7 +46,7 @@ The Home page shows accurate, live system specs at a glance — if the specs are
 ## Context
 
 - Brownfield addition to an existing repo; codebase map exists in `.planning/codebase/` (see ARCHITECTURE.md, STACK.md, STRUCTURE.md).
-- Host owns everything: `Akari.ps1` (~390 lines) — `Add-Tweak` DSL, `New-Row`/`Show-Page` rendering, `Invoke-Code` runspace engine, `$script:Cat` nav state (currently defaults to `'Windows'`).
+- Host owns everything: `Akari.ps1` (~390 lines) — `Add-Tweak` DSL, `New-Row`/`Show-Page` rendering, `Invoke-Code` runspace engine, `$script:Cat` nav state (defaults to `'Home'` since Phase 3).
 - View is `UI/MainWindow.xaml` (single window: `Nav Search Heading Tuner SvcTuner Rows Page Log`); dynamic rows are generated in code, not XAML.
 - Catalog is `Tweaks/*.ps1` (GENERATED from numbered `1 Check/`…`8 Advanced/` folders — mirror changes in both sides).
 - Spec queries must use inbox-only sources (CIM/WMI, registry, .NET) — no new dependencies; app runs fully elevated as Administrator.
@@ -64,12 +63,13 @@ The Home page shows accurate, live system specs at a glance — if the specs are
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Home is the default landing tab | User wants specs-first experience on launch | — Pending |
-| Card grid layout | Chosen over matching existing tweak rows; overview reads better as cards | — Pending |
-| Live refresh on every Home show | User chose live over button/cached; specs never stale | — Pending |
-| Show all five spec groups + edition/build only | All hardware groups selected; Windows detail limited to edition + build | — Pending |
+| Home is the default landing tab | User wants specs-first experience on launch | ✓ Good — Phase 3 (UAT pass) |
+| Card grid layout | Chosen over matching existing tweak rows; overview reads better as cards | ✓ Good — Phase 3 (3 columns normal, 2 narrow) |
+| Live refresh on every Home show | User chose live over button/cached; specs never stale | ✓ Good — Phase 3 (second runspace, dims while refreshing). Open: no timeout on a hung read (review WR-01) |
+| Show all five spec groups + edition/build only | All hardware groups selected; Windows detail limited to edition + build | ✓ Good — Phase 3 |
 | GPU VRAM read from registry `HardwareInformation.qwMemorySize` when WMI caps at 4 GB | WMI AdapterRAM is uint32; real VRAM >4 GB needs the registry | ✓ Good — Phase 2 (RTX 5070 reads 11.9 GB) |
 | BIOS date formatted in UTC with invariant culture | Avoids off-by-one dates across timezones/cultures | ✓ Good — Phase 2 |
+| Disk card shows only the system drive | User request during Phase 3 (too many drives listed); spec read still returns every fixed volume | ✓ Good — Phase 3 (ac5bff8) |
 
 ## Evolution
 
@@ -89,4 +89,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-08 after Phase 2*
+*Last updated: 2026-10-08 after Phase 3*

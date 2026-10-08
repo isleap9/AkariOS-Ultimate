@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Spec Query Engine** - Background CIM/registry queries for CPU, RAM, and Windows specs with per-field fallback
 - [x] **Phase 2: Hardware Spec Cards** - GPU, disk, and motherboard/BIOS queries with hardware-diversity handling (completed 2026-10-08)
-- [ ] **Phase 3: Home Shell & Live Refresh** - Default landing tab, card grid layout, hostname header, and refresh-on-show
+- [x] **Phase 3: Home Shell & Live Refresh** - Default landing tab, card grid layout, hostname header, and refresh-on-show (completed 2026-10-08)
 - [ ] **Phase 4: Home Polish & Documentation** - Copy-to-clipboard, health indicators, and README
 
 ## Phase Details
@@ -93,5 +93,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Spec Query Engine | 1/1 | Complete | 2026-10-08 |
 | 2. Hardware Spec Cards | 2/2 | Complete    | 2026-10-08 |
-| 3. Home Shell & Live Refresh | 2/2 | In Progress | - |
+| 3. Home Shell & Live Refresh | 2/2 | Complete    | 2026-10-08 |
 | 4. Home Polish & Documentation | TBD | Not started | - |
