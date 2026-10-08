@@ -711,6 +711,27 @@ function Update-Home {
     Add-Row $card 'Version' $win.Version
     Add-Row $card 'Build' $win.Build
     [void]$Cards.Children.Add($card)
+
+    # header maker / model, resolved from the read already in hand (no second query)
+    $d = $script:SpecData
+    $hm = $d.Host.Manufacturer
+    $hd = $d.Host.Model
+    # smbios filler fallback: one filler value discards the whole system pair for the board pair
+    if ($hm -eq $na -or $hd -eq $na -or [string]::IsNullOrWhiteSpace([string]$hm) -or [string]::IsNullOrWhiteSpace([string]$hd)) {
+        $hm = $d.Specs.Motherboard.Manufacturer
+        $hd = $d.Specs.Motherboard.Product
+    }
+    $hparts = @(@($hm, $hd) | Where-Object { $_ -and [string]$_ -ne $na })
+    if ($hparts.Count -gt 0) {
+        $sep = ' ' + [string][char]0x00B7 + ' '
+        $HostSub.Text = ($hparts -join $sep)
+        $HostSub.ToolTip = $HostSub.Text
+        $HostSub.Visibility = 'Visible'
+    } else {
+        $HostSub.Text = ''
+        $HostSub.ToolTip = $null
+        $HostSub.Visibility = 'Collapsed'
+    }
 }
 
 function Start-SpecRead {
