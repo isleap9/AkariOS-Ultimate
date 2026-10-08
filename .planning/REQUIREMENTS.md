@@ -62,25 +62,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SPEC-01 | TBD | Pending |
-| SPEC-02 | TBD | Pending |
-| SPEC-03 | TBD | Pending |
-| SPEC-04 | TBD | Pending |
-| SPEC-05 | TBD | Pending |
-| SPEC-06 | TBD | Pending |
-| SPEC-07 | TBD | Pending |
-| SPEC-08 | TBD | Pending |
-| SHELL-01 | TBD | Pending |
-| SHELL-02 | TBD | Pending |
-| SHELL-03 | TBD | Pending |
-| REFR-01 | TBD | Pending |
-| REFR-02 | TBD | Pending |
-| DOC-01 | TBD | Pending |
+| SPEC-01 | Phase 1 | Pending |
+| SPEC-02 | Phase 1 | Pending |
+| SPEC-03 | Phase 2 | Pending |
+| SPEC-04 | Phase 2 | Pending |
+| SPEC-05 | Phase 2 | Pending |
+| SPEC-06 | Phase 1 | Pending |
+| SPEC-07 | Phase 4 | Pending |
+| SPEC-08 | Phase 4 | Pending |
+| SHELL-01 | Phase 3 | Pending |
+| SHELL-02 | Phase 3 | Pending |
+| SHELL-03 | Phase 3 | Pending |
+| REFR-01 | Phase 3 | Pending |
+| REFR-02 | Phase 1 | Pending |
+| DOC-01 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14 ⚠️
+- Mapped to phases: 14
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-08*
