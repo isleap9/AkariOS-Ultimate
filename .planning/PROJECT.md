@@ -30,6 +30,8 @@ The Home page shows accurate, live system specs at a glance — if the specs are
 - [ ] Home page shows motherboard + BIOS (board model, BIOS version/date)
 - [ ] Home page shows Windows edition + build (e.g. Windows 11 Pro 23H2, build number)
 - [ ] Home page is the default landing tab on launch
+
+*Phases 1–2 built the background spec reading for all groups above; they become ✓ once Phase 3 shows them on Home.*
 - [ ] Home specs refresh live every time Home is shown
 - [ ] Home layout uses a card grid (System, CPU, RAM, GPU, Disk, Windows cards)
 
@@ -66,6 +68,8 @@ The Home page shows accurate, live system specs at a glance — if the specs are
 | Card grid layout | Chosen over matching existing tweak rows; overview reads better as cards | — Pending |
 | Live refresh on every Home show | User chose live over button/cached; specs never stale | — Pending |
 | Show all five spec groups + edition/build only | All hardware groups selected; Windows detail limited to edition + build | — Pending |
+| GPU VRAM read from registry `HardwareInformation.qwMemorySize` when WMI caps at 4 GB | WMI AdapterRAM is uint32; real VRAM >4 GB needs the registry | ✓ Good — Phase 2 (RTX 5070 reads 11.9 GB) |
+| BIOS date formatted in UTC with invariant culture | Avoids off-by-one dates across timezones/cultures | ✓ Good — Phase 2 |
 
 ## Evolution
 
@@ -85,4 +89,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-08 after initialization*
+*Last updated: 2026-10-08 after Phase 2*

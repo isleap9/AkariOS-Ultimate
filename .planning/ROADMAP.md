@@ -13,7 +13,7 @@ Add a Home page to AkariOS-Ultimate — a PowerShell 5.1 + WPF tweaking tool —
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Spec Query Engine** - Background CIM/registry queries for CPU, RAM, and Windows specs with per-field fallback
-- [ ] **Phase 2: Hardware Spec Cards** - GPU, disk, and motherboard/BIOS queries with hardware-diversity handling
+- [x] **Phase 2: Hardware Spec Cards** - GPU, disk, and motherboard/BIOS queries with hardware-diversity handling (completed 2026-10-08)
 - [ ] **Phase 3: Home Shell & Live Refresh** - Default landing tab, card grid layout, hostname header, and refresh-on-show
 - [ ] **Phase 4: Home Polish & Documentation** - Copy-to-clipboard, health indicators, and README
 
@@ -45,7 +45,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User sees motherboard manufacturer/product, BIOS version, and release date
   4. Null/filler SMBIOS strings are filtered to "Not available"
 
-**Plans**: 2/2 plans executed
+**Plans**: 2/2 plans complete
 **Wave 1**
 - [x] 02-PLAN.md
 
@@ -89,6 +89,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Spec Query Engine | 1/1 | Complete | 2026-10-08 |
-| 2. Hardware Spec Cards | 2/2 | In Progress | - |
+| 2. Hardware Spec Cards | 2/2 | Complete    | 2026-10-08 |
 | 3. Home Shell & Live Refresh | TBD | Not started | - |
 | 4. Home Polish & Documentation | TBD | Not started | - |
