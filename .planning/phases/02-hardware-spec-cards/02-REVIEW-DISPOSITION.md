@@ -1,4 +1,4 @@
----
+| WR-02 |  | fixed | 02-02 c55c7a0 (harness PASS) || WR-01 |  | fixed | 02-02 cd79bf5 (harness PASS) || CR-01 |  | fixed | 02-02 fbb2bc1 (harness PASS) |---
 phase: 02
 review: 02-REVIEW.md
 titles: json
@@ -59,7 +59,7 @@ findings:
     severity: warning
     disposition: open
     title: "Disk `_Status` is `Partial` on almost every machine because an empty volume label is treated as a failed field"
-open: 14
+open: 11
 total: 14
 recorded: 2026-10-08T14:57:46.468Z
 ---
