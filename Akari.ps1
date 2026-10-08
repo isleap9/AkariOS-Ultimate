@@ -136,6 +136,7 @@ function Get-Specs {
         Windows = @{ _Status = 'OK' }
         GPU = @{ _Status = 'OK'; Adapters = @() }
         Disk = @{ _Status = 'OK'; Volumes = @() }
+        Motherboard = @{ _Status = 'OK' }
     }
 
     # --- CPU ---
@@ -318,6 +319,34 @@ function Get-Specs {
     $result.Disk.Volumes = $diskVolumes
     if ($diskSuccess -eq 0 -and $diskTotal -gt 0) { $result.Disk._Status = 'Failed' }
     elseif ($diskSuccess -lt $diskTotal) { $result.Disk._Status = 'Partial' }
+
+    # --- Motherboard / BIOS ---
+    $mbManufacturer = 'Not available'
+    $mbProduct = 'Not available'
+    $biosVersion = 'Not available'
+    $biosDate = 'Not available'
+    $mbFields = 4
+    $mbSuccess = 0
+    try {
+        $board = Get-CimInstance -ClassName Win32_BaseBoard -ErrorAction Stop | Select-Object -First 1
+        if ($board) {
+            if (Test-SmbiosValue $board.Manufacturer) { $mbManufacturer = $board.Manufacturer.Trim(); $mbSuccess++ }
+            if (Test-SmbiosValue $board.Product) { $mbProduct = $board.Product.Trim(); $mbSuccess++ }
+        }
+    } catch { }
+    try {
+        $bios = Get-CimInstance -ClassName Win32_BIOS -ErrorAction Stop | Select-Object -First 1
+        if ($bios) {
+            if (Test-SmbiosValue $bios.SMBIOSBIOSVersion) { $biosVersion = $bios.SMBIOSBIOSVersion.Trim(); $mbSuccess++ }
+            if ($bios.ReleaseDate) { $biosDate = $bios.ReleaseDate.ToString('yyyy-MM-dd'); $mbSuccess++ }
+        }
+    } catch { }
+    $result.Motherboard.Manufacturer = $mbManufacturer
+    $result.Motherboard.Product = $mbProduct
+    $result.Motherboard.BIOSVersion = $biosVersion
+    $result.Motherboard.ReleaseDate = $biosDate
+    if ($mbSuccess -eq 0) { $result.Motherboard._Status = 'Failed' }
+    elseif ($mbSuccess -lt $mbFields) { $result.Motherboard._Status = 'Partial' }
 
     return $result
 }
