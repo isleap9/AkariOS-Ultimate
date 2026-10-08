@@ -135,6 +135,7 @@ function Get-Specs {
         RAM = @{ _Status = 'OK' }
         Windows = @{ _Status = 'OK' }
         GPU = @{ _Status = 'OK'; Adapters = @() }
+        Disk = @{ _Status = 'OK'; Volumes = @() }
     }
 
     # --- CPU ---
@@ -286,6 +287,37 @@ function Get-Specs {
     $result.GPU.Adapters = $gpuAdapters
     if ($gpuSuccess -eq 0 -and $gpuTotal -gt 0) { $result.GPU._Status = 'Failed' }
     elseif ($gpuSuccess -lt $gpuTotal) { $result.GPU._Status = 'Partial' }
+
+    # --- Disk ---
+    $diskVolumes = @()
+    $diskFields = 5
+    $diskSuccess = 0
+    $diskTotal = 0
+    try {
+        # fixed drives only (drivetype 3)
+        $disks = @(Get-CimInstance -ClassName Win32_LogicalDisk -ErrorAction Stop | Where-Object { $_.DriveType -eq 3 })
+        if ($disks.Count -eq 0) {
+            $result.Disk._Status = 'Failed'
+        } else {
+            foreach ($disk in $disks) {
+                $vol = @{ Drive = 'Not available'; Label = 'Not available'; FileSystem = 'Not available'; TotalGB = 'Not available'; FreeGB = 'Not available' }
+                $diskTotal += $diskFields
+
+                if ($disk.DeviceID) { $vol.Drive = $disk.DeviceID; $diskSuccess++ }
+                if ($disk.VolumeName) { $vol.Label = $disk.VolumeName; $diskSuccess++ }
+                if ($disk.FileSystem) { $vol.FileSystem = $disk.FileSystem; $diskSuccess++ }
+                if ($disk.Size -gt 0) { $vol.TotalGB = [math]::Round($disk.Size / 1GB, 1); $diskSuccess++ }
+                if ($null -ne $disk.FreeSpace -and $disk.FreeSpace -gt 0) { $vol.FreeGB = [math]::Round($disk.FreeSpace / 1GB, 1); $diskSuccess++ }
+
+                $diskVolumes += ,$vol
+            }
+        }
+    } catch {
+        $result.Disk._Status = 'Failed'
+    }
+    $result.Disk.Volumes = $diskVolumes
+    if ($diskSuccess -eq 0 -and $diskTotal -gt 0) { $result.Disk._Status = 'Failed' }
+    elseif ($diskSuccess -lt $diskTotal) { $result.Disk._Status = 'Partial' }
 
     return $result
 }
