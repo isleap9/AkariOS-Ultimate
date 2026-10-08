@@ -49,15 +49,15 @@ findings:
     title: "CPU \"Cores\" silently falls back to the logical-processor count (new, pre-existing Phase 1 code)"
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "BIOS release date is off by one day for users west of UTC (and wrong calendar in non-Gregorian cultures)"
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "A full disk reports free space as \"Not available\" and is counted as a failed read"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Disk `_Status` is `Partial` on almost every machine because an empty volume label is treated as a failed field"
 open: 11
 total: 14
@@ -79,9 +79,9 @@ recorded: 2026-10-08T14:57:46.468Z
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
 | IN-04 | info | open | - |
-| CR-01 | critical | open | - (not in the current review) |
-| WR-01 | warning | open | - (not in the current review) |
-| WR-02 | warning | open | - (not in the current review) |
+| CR-01 | critical | fixed | 02-02 fbb2bc1; re-review confirms, harness PASS |
+| WR-01 | warning | fixed | 02-02 cd79bf5; re-review confirms, harness PASS |
+| WR-02 | warning | fixed | 02-02 c55c7a0; re-review confirms, harness PASS |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
