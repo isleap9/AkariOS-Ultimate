@@ -3,7 +3,7 @@ phase: 2
 plan: 1
 type: execute
 wave: 1
-depends_on: [1]
+depends_on: []
 files_modified:
   - Akari.ps1
 autonomous: true
