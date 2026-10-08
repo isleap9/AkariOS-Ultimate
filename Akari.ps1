@@ -486,7 +486,10 @@ function Invoke-Code([string]$code, [string]$label, $meta = $null, [string]$Resu
         $resultCollection = [System.Management.Automation.PSDataCollection[object]]::new()
         $wrapped = $Helpers + "`ntry {`n`$__result = & {`n" + $code + "`n}`n`$__result`n} catch { Write-Log ('Error: ' + `$_.Exception.Message); `$__result = `$null }"
         [void]$ps.AddScript($wrapped)
-        $script:Job = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke($null, $resultCollection); Label = $label; Meta = $meta; ResultVar = $ResultVar; ResultCollection = $resultCollection }
+        # ps 5.1 cannot bind the generic BeginInvoke overload with $null input, pass an empty completed collection
+        $inputCollection = [System.Management.Automation.PSDataCollection[object]]::new()
+        $inputCollection.Complete()
+        $script:Job = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke($inputCollection, $resultCollection); Label = $label; Meta = $meta; ResultVar = $ResultVar; ResultCollection = $resultCollection }
     } else {
         $wrapped = $Helpers + "`ntry {`n& {`n" + $code + "`n} *>&1 | Out-String -Stream | ForEach-Object { if (`$_.Trim()) { Write-Log `$_ } }`n} catch { Write-Log ('Error: ' + `$_.Exception.Message) }"
         [void]$ps.AddScript($wrapped)
@@ -503,7 +506,9 @@ $timer.Add_Tick({
     if ($j -and $j.Handle.IsCompleted) {
         try {
             if ($j.ResultVar) {
-                $result = $j.Ps.EndInvoke($j.Handle)
+                [void]$j.Ps.EndInvoke($j.Handle)
+                # output lands in the caller-supplied collection, endinvoke returns nothing
+                $result = $j.ResultCollection
                 if ($result -and $result.Count -gt 0) { $script:SpecData = $result[$result.Count - 1] } else { $script:SpecData = $null }
             } else { [void]$j.Ps.EndInvoke($j.Handle) }
         } catch { Add-Log "Error: $($_.Exception.Message)" }
