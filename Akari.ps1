@@ -291,7 +291,8 @@ function Get-Specs {
 
     # --- Disk ---
     $diskVolumes = @()
-    $diskFields = 5
+    # drive, filesystem, totalgb, freegb (label is descriptive and not counted)
+    $diskFields = 4
     $diskSuccess = 0
     $diskTotal = 0
     try {
@@ -301,11 +302,12 @@ function Get-Specs {
             $result.Disk._Status = 'Failed'
         } else {
             foreach ($disk in $disks) {
-                $vol = @{ Drive = 'Not available'; Label = 'Not available'; FileSystem = 'Not available'; TotalGB = 'Not available'; FreeGB = 'Not available' }
+                $vol = @{ Drive = 'Not available'; Label = ''; FileSystem = 'Not available'; TotalGB = 'Not available'; FreeGB = 'Not available' }
                 $diskTotal += $diskFields
 
                 if ($disk.DeviceID) { $vol.Drive = $disk.DeviceID; $diskSuccess++ }
-                if ($disk.VolumeName) { $vol.Label = $disk.VolumeName; $diskSuccess++ }
+                # empty label is a valid reading, not a failed field
+                if ($disk.VolumeName) { $vol.Label = $disk.VolumeName }
                 if ($disk.FileSystem) { $vol.FileSystem = $disk.FileSystem; $diskSuccess++ }
                 if ($disk.Size -gt 0) { $vol.TotalGB = [math]::Round($disk.Size / 1GB, 1); $diskSuccess++ }
                 # 0 bytes free is a real reading (full disk); only null means not reported
