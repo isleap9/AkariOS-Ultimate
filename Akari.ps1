@@ -35,6 +35,7 @@ $script:Cat    = 'Windows'
 $script:Busy   = $false
 $script:Job    = $null
 $script:Queue  = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
+$script:SpecData = $null
 $PrioKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl'
 
 function Add-Tweak {
@@ -96,6 +97,92 @@ function Run-Trusted([String]$command) {
     sc.exe config TrustedInstaller binpath= "`"$DefaultBinPath`"" | Out-Null
     try { Stop-Service -Name TrustedInstaller -Force -ErrorAction Stop -WarningAction Stop }
     catch { taskkill /im trustedinstaller.exe /f >$null }
+}
+'@
+
+$GetSpecsFunc = @'
+function Get-Specs {
+    $result = @{
+        CPU = @{ _Status = 'OK' }
+        RAM = @{ _Status = 'OK' }
+        Windows = @{ _Status = 'OK' }
+    }
+
+    # --- CPU ---
+    $cpuModel = "Not available"
+    $cpuCores = "Not available"
+    $cpuThreads = "Not available"
+    $cpuSpeedMHz = "Not available"
+    $cpuFields = 4
+    $cpuSuccess = 0
+    try {
+        $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop | Select-Object -First 1
+        if ($cpu) {
+            if ($cpu.Name) { $cpuModel = $cpu.Name.Trim(); $cpuSuccess++ }
+            if ($cpu.NumberOfCores -gt 0) { $cpuCores = $cpu.NumberOfCores; $cpuSuccess++ }
+            elseif ($cpu.NumberOfLogicalProcessors -gt 0) { $cpuCores = $cpu.NumberOfLogicalProcessors; $cpuSuccess++ }
+            if ($cpu.NumberOfLogicalProcessors -gt 0) { $cpuThreads = $cpu.NumberOfLogicalProcessors; $cpuSuccess++ }
+            if ($cpu.MaxClockSpeed -gt 0) { $cpuSpeedMHz = $cpu.MaxClockSpeed; $cpuSuccess++ }
+        }
+    } catch { }
+    $result.CPU.Model = $cpuModel
+    $result.CPU.Cores = $cpuCores
+    $result.CPU.Threads = $cpuThreads
+    $result.CPU.SpeedMHz = $cpuSpeedMHz
+    if ($cpuSuccess -eq 0) { $result.CPU._Status = 'Failed' }
+    elseif ($cpuSuccess -lt $cpuFields) { $result.CPU._Status = 'Partial' }
+
+    # --- RAM ---
+    $ramTotalGB = "Not available"
+    $ramUsedGB = "Not available"
+    $ramFreeGB = "Not available"
+    $ramFields = 3
+    $ramSuccess = 0
+    try {
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+        if ($os -and $os.TotalVisibleMemorySize -gt 0) {
+            $totalKB = $os.TotalVisibleMemorySize
+            $freeKB = $os.FreePhysicalMemory
+            $usedKB = $totalKB - $freeKB
+            $ramTotalGB = [math]::Round($totalKB / 1MB, 1); $ramSuccess++
+            $ramUsedGB = [math]::Round($usedKB / 1MB, 1); $ramSuccess++
+            $ramFreeGB = [math]::Round($freeKB / 1MB, 1); $ramSuccess++
+        }
+    } catch { }
+    $result.RAM.TotalGB = $ramTotalGB
+    $result.RAM.UsedGB = $ramUsedGB
+    $result.RAM.FreeGB = $ramFreeGB
+    if ($ramSuccess -eq 0) { $result.RAM._Status = 'Failed' }
+    elseif ($ramSuccess -lt $ramFields) { $result.RAM._Status = 'Partial' }
+
+    # --- Windows ---
+    $winEdition = "Not available"
+    $winVersion = "Not available"
+    $winBuild = "Not available"
+    $winFields = 3
+    $winSuccess = 0
+    try {
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+        if ($os) {
+            if ($os.Caption) { $winEdition = $os.Caption; $winSuccess++ }
+            if ($os.BuildNumber) { $winBuild = $os.BuildNumber; $winSuccess++ }
+        }
+    } catch { }
+    try {
+        $reg = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction SilentlyContinue
+        if ($reg) {
+            if ($reg.UBR -and $winBuild -ne "Not available") { $winBuild = "$($winBuild).$($reg.UBR)"; $winSuccess++ }
+            if ($reg.DisplayVersion) { $winVersion = $reg.DisplayVersion; $winSuccess++ }
+            elseif ($reg.ReleaseId) { $winVersion = $reg.ReleaseId; $winSuccess++ }
+        }
+    } catch { }
+    $result.Windows.Edition = $winEdition
+    $result.Windows.Version = $winVersion
+    $result.Windows.Build = $winBuild
+    if ($winSuccess -eq 0) { $result.Windows._Status = 'Failed' }
+    elseif ($winSuccess -lt $winFields) { $result.Windows._Status = 'Partial' }
+
+    return $result
 }
 '@
 
@@ -220,7 +307,7 @@ function Show-Page {
 # ---- running actions in a background runspace
 function Set-Busy([bool]$b) { $script:Busy = $b; $Page.IsEnabled = -not $b }
 
-function Invoke-Code([string]$code, [string]$label, $meta = $null) {
+function Invoke-Code([string]$code, [string]$label, $meta = $null, [string]$ResultVar = $null) {
     if ($script:Busy) { return }
     Set-Busy $true
     Add-Log $label
@@ -229,9 +316,16 @@ function Invoke-Code([string]$code, [string]$label, $meta = $null) {
     $rs.SessionStateProxy.SetVariable('LogQueue', $script:Queue)
     $ps = [powershell]::Create()
     $ps.Runspace = $rs
-    $wrapped = $Helpers + "`ntry {`n& {`n" + $code + "`n} *>&1 | Out-String -Stream | ForEach-Object { if (`$_.Trim()) { Write-Log `$_ } }`n} catch { Write-Log ('Error: ' + `$_.Exception.Message) }"
-    [void]$ps.AddScript($wrapped)
-    $script:Job = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke(); Label = $label; Meta = $meta }
+    if ($ResultVar) {
+        $resultCollection = [System.Management.Automation.PSDataCollection[object]]::new()
+        $wrapped = $Helpers + "`ntry {`n`$__result = & {`n" + $code + "`n}`n`$__result`n} catch { Write-Log ('Error: ' + `$_.Exception.Message); `$__result = `$null }"
+        [void]$ps.AddScript($wrapped)
+        $script:Job = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke($null, $resultCollection); Label = $label; Meta = $meta; ResultVar = $ResultVar; ResultCollection = $resultCollection }
+    } else {
+        $wrapped = $Helpers + "`ntry {`n& {`n" + $code + "`n} *>&1 | Out-String -Stream | ForEach-Object { if (`$_.Trim()) { Write-Log `$_ } }`n} catch { Write-Log ('Error: ' + `$_.Exception.Message) }"
+        [void]$ps.AddScript($wrapped)
+        $script:Job = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke(); Label = $label; Meta = $meta }
+    }
 }
 
 $timer = [Windows.Threading.DispatcherTimer]::new()
@@ -241,7 +335,12 @@ $timer.Add_Tick({
     while ($script:Queue.TryDequeue([ref]$m)) { Add-Log $m }
     $j = $script:Job
     if ($j -and $j.Handle.IsCompleted) {
-        try { [void]$j.Ps.EndInvoke($j.Handle) } catch { Add-Log "Error: $($_.Exception.Message)" }
+        try {
+            if ($j.ResultVar) {
+                $result = $j.Ps.EndInvoke($j.Handle)
+                if ($result -and $result.Count -gt 0) { $script:SpecData = $result[$result.Count - 1] } else { $script:SpecData = $null }
+            } else { [void]$j.Ps.EndInvoke($j.Handle) }
+        } catch { Add-Log "Error: $($_.Exception.Message)" }
         foreach ($err in $j.Ps.Streams.Error) { Add-Log "Error: $($err.ToString())" }
         while ($script:Queue.TryDequeue([ref]$m)) { Add-Log $m }
         $j.Ps.Dispose(); $j.Rs.Dispose()
