@@ -7,12 +7,12 @@
 
 ### Spec Cards
 
-- [ ] **SPEC-01**: User sees CPU card with model, core/thread counts, and base speed
-- [ ] **SPEC-02**: User sees RAM card with total installed memory and used/free amounts in GB
+- [x] **SPEC-01**: User sees CPU card with model, core/thread counts, and base speed
+- [x] **SPEC-02**: User sees RAM card with total installed memory and used/free amounts in GB
 - [ ] **SPEC-03**: User sees GPU card listing all adapters with model, VRAM, and driver version
 - [ ] **SPEC-04**: User sees disk card with per-volume free/total space for fixed drives
 - [ ] **SPEC-05**: User sees motherboard + BIOS card with board manufacturer/product, BIOS version, and release date
-- [ ] **SPEC-06**: User sees Windows card with edition, friendly version, and full build number (incl. UBR)
+- [x] **SPEC-06**: User sees Windows card with edition, friendly version, and full build number (incl. UBR)
 - [ ] **SPEC-07**: User can copy the full spec text to the clipboard from Home
 - [ ] **SPEC-08**: User sees health-at-a-glance indicators (disk-free % / RAM pressure threshold coloring)
 
@@ -25,7 +25,7 @@
 ### Refresh & Robustness
 
 - [ ] **REFR-01**: User sees freshly queried specs every time Home is shown (background query with loading/placeholder state, UI never blocks)
-- [ ] **REFR-02**: User sees "Not available" for individual fields that fail to query instead of a blank card or error
+- [x] **REFR-02**: User sees "Not available" for individual fields that fail to query instead of a blank card or error
 
 ### Documentation
 
@@ -62,19 +62,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SPEC-01 | Phase 1 | Pending |
-| SPEC-02 | Phase 1 | Pending |
+| SPEC-01 | Phase 1 | Complete |
+| SPEC-02 | Phase 1 | Complete |
 | SPEC-03 | Phase 2 | Pending |
 | SPEC-04 | Phase 2 | Pending |
 | SPEC-05 | Phase 2 | Pending |
-| SPEC-06 | Phase 1 | Pending |
+| SPEC-06 | Phase 1 | Complete |
 | SPEC-07 | Phase 4 | Pending |
 | SPEC-08 | Phase 4 | Pending |
 | SHELL-01 | Phase 3 | Pending |
 | SHELL-02 | Phase 3 | Pending |
 | SHELL-03 | Phase 3 | Pending |
 | REFR-01 | Phase 3 | Pending |
-| REFR-02 | Phase 1 | Pending |
+| REFR-02 | Phase 1 | Complete |
 | DOC-01 | Phase 4 | Pending |
 
 **Coverage:**
