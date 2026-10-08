@@ -2657,9 +2657,9 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Start]
 "ShowRecentList"=dword:00000000
 
-; disable pinned
+; keep pinned section visible
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Start]
-"ShowPinnedSection"=dword:00000000
+"ShowPinnedSection"=dword:00000001
 
 ; disable recent
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Start]
@@ -3328,6 +3328,25 @@ reg import $regfileappactions >$null 2>&1
 Start-Sleep -Seconds 2
 reg unload "HKLM\Settings" >$null 2>&1
 }
+# keep only file explorer and settings pinned in start (wipe the rest)
+Stop-Process -Force -Name StartMenuExperienceHost -ErrorAction SilentlyContinue | Out-Null
+Start-Sleep -Seconds 1
+Remove-Item -Recurse -Force "$env:USERPROFILE\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\start2.bin" -ErrorAction SilentlyContinue | Out-Null
+$StartPins = @'
+{
+  "pinnedList": [
+    { "desktopAppLink": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\File Explorer.lnk" },
+    { "packagedAppId": "windows.immersivecontrolpanel_cw5n1h2txyewy!microsoft.windows.immersivecontrolpanel" }
+  ]
+}
+'@
+$shellFolders = @("$env:LOCALAPPDATA\Microsoft\Windows\Shell", "$env:SystemDrive\Users\Default\AppData\Local\Microsoft\Windows\Shell")
+foreach ($shellFolder in $shellFolders) {
+New-Item -Path $shellFolder -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+[System.IO.File]::WriteAllText("$shellFolder\LayoutModification.json", $StartPins, (New-Object System.Text.UTF8Encoding($false)))
+}
+Stop-Process -Force -Name explorer -ErrorAction SilentlyContinue | Out-Null
+
     } `
     -Revert {
 Write-Host "Control Panel Settings: Default..."
@@ -4741,6 +4760,13 @@ $stop = "AppActions", "CrossDeviceResume", "DesktopStickerEditorWin32Exe", "Disc
 $stop | ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Seconds 2
 Remove-Item "$env:LOCALAPPDATA\Packages\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\Settings\settings.dat" -Force -ErrorAction SilentlyContinue | Out-Null
+# revert keep only file explorer and settings pinned in start
+Stop-Process -Force -Name StartMenuExperienceHost -ErrorAction SilentlyContinue | Out-Null
+Start-Sleep -Seconds 1
+Remove-Item -Force "$env:LOCALAPPDATA\Microsoft\Windows\Shell\LayoutModification.json", "$env:SystemDrive\Users\Default\AppData\Local\Microsoft\Windows\Shell\LayoutModification.json" -ErrorAction SilentlyContinue | Out-Null
+Remove-Item -Recurse -Force "$env:USERPROFILE\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\start2.bin" -ErrorAction SilentlyContinue | Out-Null
+Stop-Process -Force -Name explorer -ErrorAction SilentlyContinue | Out-Null
+
     }
 
 Add-Tweak -Id 'sound' -Category 'Windows' -Kind Action -Button 'Open' -Name 'Sound' -Risk Safe `
