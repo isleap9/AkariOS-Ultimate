@@ -46,7 +46,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Null/filler SMBIOS strings are filtered to "Not available"
 
 **Plans**: 2 plans
+**Wave 1**
 - [x] 02-PLAN.md
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 02-02-PLAN.md — gap closure: BIOS release date in UTC + invariant culture (CR-01), 0 GB free (WR-01), label not counted in Disk status (WR-02)
 
 ### Phase 3: Home Shell & Live Refresh
