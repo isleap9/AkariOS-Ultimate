@@ -81,7 +81,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User sees health-at-a-glance indicators (disk-free % / RAM pressure threshold coloring)
   3. README documents the AkariOS-Ultimate project including the Home page feature
 
-**Plans**: TBD
+**Plans**: 3 plans
+**Wave 1**
+- [ ] 04-01-PLAN.md — Copy specs button (shared card model, clipboard, Copied feedback) and Disk/RAM health colours
+- [ ] 04-02-PLAN.md — README rewrite (project, Home page, categories, apply/revert, install, safety; Credits verbatim)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-03-PLAN.md — Phase 3 review fixes: spec-read watchdog (WR-01), remove dormant result harvest (WR-02), multi-socket CPU totals (WR-03)
+
 **UI hint**: yes
 
 ## Progress
@@ -94,4 +101,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Spec Query Engine | 1/1 | Complete | 2026-10-08 |
 | 2. Hardware Spec Cards | 2/2 | Complete    | 2026-10-08 |
 | 3. Home Shell & Live Refresh | 2/2 | Complete    | 2026-10-08 |
-| 4. Home Polish & Documentation | TBD | Not started | - |
+| 4. Home Polish & Documentation | 0/3 | Planned | - |
