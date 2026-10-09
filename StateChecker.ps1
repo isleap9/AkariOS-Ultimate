@@ -3,6 +3,8 @@
 #
 # A target is either .reg text, or a list of settings applied in order:
 #   @{ Path = 'HKLM:\...'; Name = 'value'; Value = 0 }  |  @{ Path; Name; Absent = $true }  |  @{ Path; KeyAbsent = $true } (key deleted)
+#   @{ Service = 'Name'; StartType = 'Disabled' }  |  @{ Task = '\Folder\Name'; Enabled = $false }  |  @{ Feature = 'Name'; State = 'Disabled' }
+#   (a service or task can also be @{ ...; Absent = $true })
 # A reading (keyed by Get-SettingKey) is:  @{ Present = $true; Value = ... }  |  @{ Present = $false }  |  @{ Error = 'reason' }
 
 # the closed set of Detect results (CONTEXT.md); 'Checking' is a display state, not a result
@@ -82,7 +84,39 @@ function Test-UnderKey([string]$KeyPath, [string]$Parent) {
     return ($KeyPath -eq $Parent -or $KeyPath.StartsWith($Parent + '\'))
 }
 
-# a target in order -> what it leaves behind: the last word on each value, plus the keys it deletes
+# an optional feature waiting for a restart already has its change made; a removed payload is still disabled
+function Get-FeatureState([string]$State) {
+    switch ($State) {
+        'DisabledWithPayloadRemoved' { 'Disabled' }
+        'DisablePending' { 'Disabled' }
+        'EnablePending' { 'Enabled' }
+        default { $State }
+    }
+}
+
+# one target entry -> what kind of setting it is, its key, a label for the log, and what it expects
+#   registry: @{ Path; Name; Value | Absent }   service: @{ Service; StartType | Absent }
+#   task: @{ Task = '\Path\Name'; Enabled | Absent }   feature: @{ Feature; State }
+function Get-EntryInfo($s) {
+    $absent = [bool]$s.Absent
+    if ($s.Service) {
+        $v = if ($s.StartType -eq 'Auto') { 'Automatic' } else { $s.StartType }
+        return @{ Kind = 'Service'; Target = $s.Service; Key = 'service|' + $s.Service.ToLowerInvariant(); Label = "service $($s.Service)"; Value = $v; Absent = $absent }
+    }
+    if ($s.Task) {
+        return @{ Kind = 'Task'; Target = $s.Task; Key = 'task|' + $s.Task.ToLowerInvariant(); Label = "task $($s.Task)"; Value = [bool]$s.Enabled; Absent = $absent }
+    }
+    if ($s.Feature) {
+        return @{ Kind = 'Feature'; Target = $s.Feature; Key = 'feature|' + $s.Feature.ToLowerInvariant(); Label = "feature $($s.Feature)"; Value = (Get-FeatureState $s.State); Absent = $absent }
+    }
+    return @{ Kind = 'Registry'; Key = (Get-SettingKey $s.Path $s.Name); KeyPath = (Get-KeyPath $s.Path); Path = $s.Path; Name = $s.Name
+        Label = "$($s.Path)\$($s.Name)"; Value = $s.Value; Absent = $absent }
+}
+
+# the key a reading for this entry is stored under
+function Get-EntryKey($Entry) { (Get-EntryInfo $Entry).Key }
+
+# a target in order -> what it leaves behind: the last word on each setting, plus the registry keys it deletes
 function Resolve-Target($Target) {
     $list = if ($Target -is [string]) { ConvertFrom-RegText $Target } else { @($Target) }
     $values = [ordered]@{}
@@ -92,21 +126,21 @@ function Resolve-Target($Target) {
         if ($s.KeyAbsent) {
             # deleting a key drops every value under it that this target set earlier
             $kp = Get-KeyPath $s.Path
-            foreach ($k in @($values.Keys)) { if (Test-UnderKey $values[$k].KeyPath $kp) { $values.Remove($k) } }
+            foreach ($k in @($values.Keys)) { if ($values[$k].KeyPath -and (Test-UnderKey $values[$k].KeyPath $kp)) { $values.Remove($k) } }
             $deleted.Add($kp)
             continue
         }
-        $k = Get-SettingKey $s.Path $s.Name
-        if ($values.Contains($k)) { $values.Remove($k) }
-        $values[$k] = @{ Entry = $s; KeyPath = (Get-KeyPath $s.Path) }
+        $info = Get-EntryInfo $s
+        if ($values.Contains($info.Key)) { $values.Remove($info.Key) }
+        $values[$info.Key] = $info
     }
     return @{ Values = $values; Deleted = $deleted }
 }
 
-# what a resolved target expects of one value: its entry, absent when a deleted key covers it, or $null when it does not say
-function Get-Expectation($Resolved, [string]$Key, [string]$KeyPath) {
-    if ($Resolved.Values.Contains($Key)) { return $Resolved.Values[$Key].Entry }
-    foreach ($d in $Resolved.Deleted) { if (Test-UnderKey $KeyPath $d) { return @{ Absent = $true } } }
+# what a resolved target expects of one setting: its entry, absent when a deleted key covers it, or $null when it does not say
+function Get-Expectation($Resolved, $Info) {
+    if ($Resolved.Values.Contains($Info.Key)) { return $Resolved.Values[$Info.Key] }
+    if ($Info.KeyPath) { foreach ($d in $Resolved.Deleted) { if (Test-UnderKey $Info.KeyPath $d) { return @{ Absent = $true } } } }
     return $null
 }
 
@@ -152,8 +186,9 @@ function Get-CompareSettings($ApplyTarget, $RevertTarget) {
             if ($seen.ContainsKey($k)) { continue }
             $seen[$k] = $true
             $v = $side.Values[$k]
-            $c = @{ Key = $k; Path = $v.Entry.Path; Name = $v.Entry.Name
-                Apply = (Get-Expectation $a $k $v.KeyPath); Revert = (Get-Expectation $r $k $v.KeyPath) }
+            # what the machine reader needs: Kind plus Path/Name (registry) or Target (service, task, feature)
+            $c = @{ Key = $k; Kind = $v.Kind; Target = $v.Target; Path = $v.Path; Name = $v.Name; Label = $v.Label
+                Apply = (Get-Expectation $a $v); Revert = (Get-Expectation $r $v) }
             if (-not (Test-SameExpectation $c.Apply $c.Revert)) { $c }
         }
     }
@@ -165,13 +200,16 @@ function Get-DetectResult($ApplyTarget, $RevertTarget, [hashtable]$Readings) {
     $unread = @()
     foreach ($c in $compare) {
         $r = if ($Readings) { $Readings[$c.Key] } else { $null }
-        if ($null -eq $r) { $unread += "$($c.Path)\$($c.Name): not read" }
-        elseif ($r.Error) { $unread += "$($c.Path)\$($c.Name): $($r.Error)" }
+        if ($null -eq $r) { $unread += "$($c.Label): not read" }
+        elseif ($r.Error) { $unread += "$($c.Label): $($r.Error)" }
+        # a missing service, task or feature is unreadable, unless a target is the one that removes it
+        elseif ($c.Kind -ne 'Registry' -and -not $r.Present -and -not ($c.Apply.Absent -or $c.Revert.Absent)) { $unread += "$($c.Label): not found" }
     }
     if ($unread.Count) { return @{ Result = 'Unknown'; Reason = ($unread -join '; ') } }
     $applied = $true; $reverted = $true
     foreach ($c in $compare) {
         $r = $Readings[$c.Key]
+        if ($c.Kind -eq 'Feature' -and $r.Present) { $r = @{ Present = $true; Value = (Get-FeatureState $r.Value) } }
         if ($c.Apply -and -not (Test-Expectation $c.Apply $r)) { $applied = $false }
         if ($c.Revert -and -not (Test-Expectation $c.Revert $r)) { $reverted = $false }
     }

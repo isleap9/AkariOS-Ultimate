@@ -431,7 +431,8 @@ $SpecReadCode = $GetSpecsFunc + "`n" + $HostIdentityFunc + "`n" + @'
 try { @{ Specs = Get-Specs; Host = Get-HostIdentity } } catch { $_.Exception.Message }
 '@
 
-# machine reader for detect: reads each requested registry value into a shared dictionary as it goes, no decisions
+# machine reader for detect: reads each requested registry value, service start type, task state or feature state
+# into a shared dictionary as it goes, no decisions
 $DetectReadCode = @'
 $hives = @{
     HKLM = [Microsoft.Win32.Registry]::LocalMachine; HKEY_LOCAL_MACHINE = [Microsoft.Win32.Registry]::LocalMachine
@@ -453,7 +454,45 @@ function Read-RegValue([string]$Path, [string]$Name) {
         } finally { $k.Close() }
     } catch { return @{ Error = $_.Exception.Message } }
 }
-foreach ($r in $DetectReads) { [void]$DetectReadings.TryAdd($r.Key, (Read-RegValue $r.Path $r.Name)) }
+Add-Type -AssemblyName System.ServiceProcess
+$services = $null
+function Read-ServiceStart([string]$Name) {
+    # every service once per read; a missing service is reported as not present
+    if ($null -eq $script:services) {
+        $script:services = @{}
+        foreach ($s in [System.ServiceProcess.ServiceController]::GetServices()) { $script:services[$s.ServiceName] = $s }
+    }
+    $s = $script:services[$Name]
+    if (-not $s) { return @{ Present = $false } }
+    return @{ Present = $true; Value = $s.StartType.ToString() }
+}
+function Read-TaskState([string]$Task) {
+    $i = $Task.LastIndexOf('\')
+    $path = $Task.Substring(0, $i + 1); $name = $Task.Substring($i + 1)
+    try {
+        $t = @(Get-ScheduledTask -TaskPath $path -ErrorAction Stop | Where-Object { $_.TaskName -eq $name })
+    } catch {
+        # an empty or missing task folder is reported as an error by the cmdlet, it just means no such task
+        if ($_.Exception.Message -match 'No MSFT_ScheduledTask objects found') { return @{ Present = $false } }
+        return @{ Error = $_.Exception.Message }
+    }
+    if (-not $t.Count) { return @{ Present = $false } }
+    return @{ Present = $true; Value = ([string]$t[0].State -ne 'Disabled') }
+}
+function Read-FeatureState([string]$Name) {
+    try { $f = Get-WindowsOptionalFeature -Online -FeatureName $Name -ErrorAction Stop } catch { return @{ Error = $_.Exception.Message } }
+    if (-not $f) { return @{ Present = $false } }
+    return @{ Present = $true; Value = [string]$f.State }
+}
+foreach ($r in $DetectReads) {
+    $reading = switch ($r.Kind) {
+        'Service' { Read-ServiceStart $r.Target }
+        'Task' { Read-TaskState $r.Target }
+        'Feature' { Read-FeatureState $r.Target }
+        default { Read-RegValue $r.Path $r.Name }
+    }
+    [void]$DetectReadings.TryAdd($r.Key, $reading)
+}
 '@
 
 # ---- window
@@ -997,7 +1036,7 @@ function Start-DetectRead($list) {
     $reads = @{}
     foreach ($t in $list) {
         $cmp = @(Get-CompareSettings $t.ApplyTarget $t.RevertTarget)
-        foreach ($c in $cmp) { if (-not $reads.ContainsKey($c.Key)) { $reads[$c.Key] = @{ Key = $c.Key; Path = $c.Path; Name = $c.Name } } }
+        foreach ($c in $cmp) { if (-not $reads.ContainsKey($c.Key)) { $reads[$c.Key] = @{ Key = $c.Key; Kind = $c.Kind; Target = $c.Target; Path = $c.Path; Name = $c.Name } } }
         $rows += @{ Tweak = $t; Keys = @($cmp | ForEach-Object { $_.Key }) }
     }
     try {

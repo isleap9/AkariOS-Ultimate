@@ -5479,6 +5479,15 @@ Start-Process powercfg.cpl
 
 Add-Tweak -Id 'timer-resolution' -Category 'Windows' -Name 'Timer resolution' -Risk Caution `
     -Description 'Run the timer at its lowest resolution' `
+    -ApplyTarget @(
+        @{ Service = 'Set Timer Resolution Service'; StartType = 'Automatic' }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel'; Name = 'GlobalTimerResolutionRequests'; Value = 1 }
+    ) `
+    -RevertTarget @(
+        # revert deletes the service
+        @{ Service = 'Set Timer Resolution Service'; Absent = $true }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel'; Name = 'GlobalTimerResolutionRequests'; Absent = $true }
+    ) `
     -Apply {
 # create .cs file
 $csfile = @'
