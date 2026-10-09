@@ -4,10 +4,10 @@ milestone: v1.0
 current_phase: 04
 status: completed
 stopped_at: Phase 04 complete — all phases complete
-last_updated: "2026-10-09T12:33:33.584Z"
+last_updated: "2026-10-09T14:43:10.564Z"
 last_activity: 2026-10-09
 last_activity_desc: Phase 04 complete
-state_head: 05f8c46e124c0f4aeac04add6b3d50799ab6340e
+state_head: a4f8361d83be9cdc304926ce5a1ff7e24c4e6a72
 progress:
   total_phases: 4
   completed_phases: 4
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 Phase: 04
 Plan: Not started
 Status: All phases complete
-Last activity: 2026-10-09 — Phase 04 complete
+Last activity: 2026-10-09 - Completed quick task 261009-mt3: Fix stale Phase 2 test checks (C-1) and reword SPEC-04 to system drive
 
 Progress: [██████████] 100%
 
@@ -96,6 +96,12 @@ Recent decisions affecting current work:
 - ⚠️ [Phase 4] UI-REVIEW.md (19/24, advisory): the two health values are dimmed to Opacity 0.6 during a refresh, dropping `Bad` to ≈2.7:1 and `Warn` to ≈3.7:1 contrast — tag health rows and exclude them from the dim
 - ⚠️ [Phase 4] UI-REVIEW.md (19/24, advisory): no feedback during the 20 s watchdog window — a hung WMI provider leaves Home silently faded until the deadline
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261009-mt3 | Fix stale Phase 2 test checks (C-1) and reword SPEC-04 to system drive | 2026-10-09 | a4f8361 | [261009-mt3-fix-stale-phase-2-test-checks-c-1-and-re](./quick/261009-mt3-fix-stale-phase-2-test-checks-c-1-and-re/) |
+
 ## Deferred Items
 
 | Category | Item | Status | Deferred At | Milestone |
@@ -104,6 +110,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-10-09T12:33:33Z
-Stopped at: Phase 04 complete — all phases complete, v1.0 milestone ready to close
+Last session: 2026-10-09T14:00:00Z
+Stopped at: Session resumed — Phase 1 VERIFICATION.md written (passed), awaiting re-audit / milestone close
 Resume file: None
