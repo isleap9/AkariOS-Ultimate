@@ -208,7 +208,9 @@
           <!-- Home page: host header + spec card grid -->
           <StackPanel x:Name="HomePanel" Visibility="Collapsed">
             <DockPanel x:Name="HomeHeader" Margin="0,0,0,16">
-              <!-- right side reserved for the Phase 4 copy button -->
+              <!-- copy specs button (right side) -->
+              <Button x:Name="CopySpecs" DockPanel.Dock="Right" VerticalAlignment="Center" Content="Copy specs"
+                      ToolTip="Copy all specs as text" IsEnabled="False" Style="{StaticResource Btn}"/>
               <StackPanel>
                 <TextBlock x:Name="HostName" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource Tx}" TextTrimming="CharacterEllipsis"/>
                 <TextBlock x:Name="HostSub" FontSize="13" Foreground="{DynamicResource Mu}" Margin="0,4,0,0" Visibility="Collapsed" TextTrimming="CharacterEllipsis"/>
