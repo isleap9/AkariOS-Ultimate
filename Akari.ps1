@@ -56,7 +56,7 @@ function Add-Tweak {
           [ValidateSet('Toggle', 'Action', 'Group', 'Console')][string]$Kind = 'Toggle',
           [string]$Button = 'Run', [object[]]$Actions, [string]$Confirm, [string]$Script,
           [scriptblock]$Apply, [scriptblock]$Revert, [scriptblock]$Check,
-          [object[]]$ApplyTarget, [object[]]$RevertTarget)
+          [object]$ApplyTarget, [object]$RevertTarget)
     $script:Tweaks.Add([pscustomobject]@{ Id = $Id; Category = $Category; Name = $Name; Description = $Description
             Risk = $Risk; Kind = $Kind; Button = $Button; Actions = $Actions; Confirm = $Confirm; Script = $Script
             Apply = $Apply; Revert = $Revert; Check = $Check; ApplyTarget = $ApplyTarget; RevertTarget = $RevertTarget })
@@ -123,6 +123,12 @@ function Set-Reg($Path, $Name, $Value, $Type = 'DWord') {
     New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType $Type -Force | Out-Null
 }
 function Remove-Reg($Path, $Name) { Remove-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue }
+# import a tweak's .reg target ($ApplyTarget / $RevertTarget): the same text Detect reads
+function Import-Reg([string]$Text, [string]$Name) {
+    $file = "$env:SystemRoot\Temp\$Name.reg"
+    Set-Content -Path $file -Value $Text -Force
+    Start-Process -Wait "regedit.exe" -ArgumentList "/S `"$file`"" -WindowStyle Hidden
+}
 function Run-Trusted([String]$command) {
     try { Stop-Service -Name TrustedInstaller -Force -ErrorAction Stop -WarningAction Stop }
     catch { taskkill /im trustedinstaller.exe /f >$null }
@@ -621,6 +627,11 @@ function Invoke-Code([string]$code, [string]$label, $meta = $null) {
     $rs = [runspacefactory]::CreateRunspace()
     $rs.Open()
     $rs.SessionStateProxy.SetVariable('LogQueue', $script:Queue)
+    # an on/off tweak's bodies can import their declared targets
+    if ($meta -and $meta.Tweak) {
+        $rs.SessionStateProxy.SetVariable('ApplyTarget', $meta.Tweak.ApplyTarget)
+        $rs.SessionStateProxy.SetVariable('RevertTarget', $meta.Tweak.RevertTarget)
+    }
     $ps = [powershell]::Create()
     $ps.Runspace = $rs
     $wrapped = $Helpers + "`ntry {`n& {`n" + $code + "`n} *>&1 | Out-String -Stream | ForEach-Object { if (`$_.Trim()) { Write-Log `$_ } }`n} catch { Write-Log ('Error: ' + `$_.Exception.Message) }"
@@ -1127,7 +1138,7 @@ $Rows.AddHandler([Windows.Controls.Primitives.ButtonBase]::ClickEvent, [Windows.
     $id, $kind, $arg = ([string]$b.Tag).Split('|')
     $t = $script:Tweaks | Where-Object { $_.Id -eq $id } | Select-Object -First 1
     if (-not $t) { return }
-    $meta = if ($t.Kind -eq 'Toggle') { @{ Id = $id; Kind = $kind } } else { $null }
+    $meta = if ($t.Kind -eq 'Toggle') { @{ Id = $id; Kind = $kind; Tweak = $t } } else { $null }
     switch ($kind) {
         'Apply'  { if ($t.Apply -and (Confirm-Run $t.Confirm)) { Invoke-Code $t.Apply.ToString() "$($t.Name): $(if ($t.Kind -eq 'Toggle') { 'optimize' } else { $t.Button.ToLower() })" $meta } }
         'Revert' { if ($t.Revert) { Invoke-Code $t.Revert.ToString() "$($t.Name): default" $meta } }

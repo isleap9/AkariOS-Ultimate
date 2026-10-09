@@ -449,9 +449,7 @@ Stop-Process -Force -Name explorer -ErrorAction SilentlyContinue | Out-Null
 
 Add-Tweak -Id 'start-layout' -Category 'Windows' -Name 'Start menu layout' -Risk Safe `
     -Description 'Use the 25H2 Start menu layout (Default switches to 24H2)' `
-    -Apply {
-# create reg file
-$NewStartMenu = @"
+    -ApplyTarget @'
 Windows Registry Editor Version 5.00
 
 ; new start menu
@@ -470,15 +468,8 @@ Windows Registry Editor Version 5.00
 ; set start menu apps view to list
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Start]
 "AllAppsViewMode"=dword:00000002
-"@
-Set-Content -Path "$env:SystemRoot\Temp\newstartmenu.reg" -Value $NewStartMenu -Force
-
-# import reg file
-Start-Process -Wait "regedit.exe" -ArgumentList "/S `"$env:SystemRoot\Temp\newstartmenu.reg`"" -WindowStyle Hidden
-    } `
-    -Revert {
-# create reg file
-$OldStartMenu = @"
+'@ `
+    -RevertTarget @'
 Windows Registry Editor Version 5.00
 
 ; old start menu
@@ -497,11 +488,14 @@ Windows Registry Editor Version 5.00
 ; set start menu apps view to category
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Start]
 "AllAppsViewMode"=dword:00000000
-"@
-Set-Content -Path "$env:SystemRoot\Temp\oldstartmenu.reg" -Value $OldStartMenu -Force
-
+'@ `
+    -Apply {
 # import reg file
-Start-Process -Wait "regedit.exe" -ArgumentList "/S `"$env:SystemRoot\Temp\oldstartmenu.reg`"" -WindowStyle Hidden
+Import-Reg $ApplyTarget 'newstartmenu'
+    } `
+    -Revert {
+# import reg file
+Import-Reg $RevertTarget 'oldstartmenu'
     }
 
 Add-Tweak -Id 'start-shortcuts' -Category 'Windows' -Kind Action -Button 'Create' -Name 'Start menu shortcuts' -Risk Safe `
