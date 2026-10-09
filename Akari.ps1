@@ -501,11 +501,73 @@ function Read-FeatureState([string]$Name) {
     if (-not $script:features.ContainsKey($Name)) { return @{ Present = $false } }
     return @{ Present = $true; Value = $script:features[$Name] }
 }
+$guidPattern = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+function Read-ActiveScheme {
+    $out = (powercfg /getactivescheme 2>&1) -join ' '
+    if ($out -match $guidPattern) { return @{ Present = $true; Value = $Matches[0].ToLowerInvariant() } }
+    return @{ Error = "powercfg: $out" }
+}
+$plans = @{}
+# every value in one power plan from a single powercfg /qh dump (hidden settings included). Labels are localised, so the
+# dump is read by shape: plan at indent 0, subgroup GUID at indent 2, setting GUID at indent 4, and the setting's last
+# two hex values at indent 4 are its current AC and DC values.
+function Get-PlanValues([string]$Scheme) {
+    if ($script:plans.ContainsKey($Scheme)) { return $script:plans[$Scheme] }
+    $list = (powercfg /L 2>&1) -join "`n"
+    if ($list -notmatch [regex]::Escape($Scheme)) { $script:plans[$Scheme] = @{ Missing = $true }; return $script:plans[$Scheme] }
+    $out = @(powercfg /qh $Scheme 2>&1)
+    if ($LASTEXITCODE -ne 0) { $script:plans[$Scheme] = @{ Error = "powercfg: $($out -join ' ')" }; return $script:plans[$Scheme] }
+    $map = @{}; $sub = $null; $set = $null; $vals = @()
+    $flush = { if ($set -and $vals.Count -ge 2) { $map["$sub|$set".ToLowerInvariant()] = @{ AC = $vals[-2]; DC = $vals[-1] } } }
+    foreach ($line in $out) {
+        $line = [string]$line
+        $indent = $line.Length - $line.TrimStart().Length
+        if ($line -match $guidPattern -and $indent -in 2, 4) {
+            . $flush; $vals = @()
+            if ($indent -eq 2) { $sub = $Matches[0]; $set = $null } else { $set = $Matches[0] }
+            continue
+        }
+        if ($set -and $indent -eq 4 -and $line -match ':\s*0x([0-9a-fA-F]+)\s*$') { $vals += [long][Convert]::ToUInt32($Matches[1], 16) }
+    }
+    . $flush
+    $script:plans[$Scheme] = @{ Values = $map }
+    return $script:plans[$Scheme]
+}
+function Read-PowerValue($r) {
+    $p = Get-PlanValues $r.Scheme
+    if ($p.Error) { return @{ Error = $p.Error } }
+    # a deleted plan takes all its values with it
+    if ($p.Missing) { return @{ Present = $false } }
+    $v = $p.Values["$($r.Subgroup)|$($r.Setting)".ToLowerInvariant()]
+    # a setting this hardware does not have (no battery, no Intel graphics) is left out of Detect
+    if (-not $v) { return @{ NotOnMachine = $true } }
+    return @{ Present = $true; Value = $v[$r.Source] }
+}
+$bootEntries = @{}
+function Read-BootValue($r) {
+    if (-not $script:bootEntries.ContainsKey($r.BootEntry)) {
+        $out = @(bcdedit /enum $r.BootEntry 2>&1)
+        if ($LASTEXITCODE -ne 0) { $script:bootEntries[$r.BootEntry] = @{ Error = "bcdedit: $($out -join ' ')" } }
+        else {
+            # element lines are 'name   value'; element names are not localised
+            $map = @{}
+            foreach ($line in $out) { if ([string]$line -match '^(\S+)\s+(\S.*?)\s*$') { $map[$Matches[1]] = $Matches[2] } }
+            $script:bootEntries[$r.BootEntry] = @{ Values = $map }
+        }
+    }
+    $b = $script:bootEntries[$r.BootEntry]
+    if ($b.Error) { return @{ Error = $b.Error } }
+    if (-not $b.Values.ContainsKey($r.Target)) { return @{ Present = $false } }
+    return @{ Present = $true; Value = $b.Values[$r.Target] }
+}
 foreach ($r in $DetectReads) {
     $reading = switch ($r.Kind) {
         'Service' { Read-ServiceStart $r.Target }
         'Task' { Read-TaskState $r.Target }
         'Feature' { Read-FeatureState $r.Target }
+        'ActivePowerScheme' { Read-ActiveScheme }
+        'Power' { Read-PowerValue $r }
+        'Boot' { Read-BootValue $r }
         default { Read-RegValue $r.Path $r.Name }
     }
     [void]$DetectReadings.TryAdd($r.Key, $reading)
@@ -1053,7 +1115,7 @@ function Start-DetectRead($list) {
     $reads = @{}
     foreach ($t in $list) {
         $cmp = @(Get-CompareSettings $t.ApplyTarget $t.RevertTarget)
-        foreach ($c in $cmp) { if (-not $reads.ContainsKey($c.Key)) { $reads[$c.Key] = @{ Key = $c.Key; Kind = $c.Kind; Target = $c.Target; Path = $c.Path; Name = $c.Name } } }
+        foreach ($c in $cmp) { if (-not $reads.ContainsKey($c.Key)) { $reads[$c.Key] = $c } }
         $rows += @{ Tweak = $t; Keys = @($cmp | ForEach-Object { $_.Key }) }
     }
     try {

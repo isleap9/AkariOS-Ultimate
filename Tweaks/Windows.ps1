@@ -5224,7 +5224,78 @@ cmd /c "reg delete `"$diskPath`" /f >nul 2>&1"
     }
 
 Add-Tweak -Id 'power-plan' -Category 'Windows' -Name 'Power plan' -Risk Caution `
-    -Description 'Apply the Akari power plan' `
+    -Description 'Apply the Akari power plan. Optimize deletes every other power plan; Default brings back only the standard Windows plans, not ones you or your PC maker added' `
+    -ApplyTarget @(
+        # akari plan active, with its values (values this hardware does not have are skipped by detect)
+        @{ ActivePowerScheme = '99999999-9999-9999-9999-999999999999' }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '0012ee47-9041-4b5d-9b77-535fba8b1442'; Setting = '6738e2c4-e8a5-4a42-b16a-e040e769756e'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '0d7dbae2-4294-402a-ba8e-26777e8488cd'; Setting = '309dce9b-bef4-4119-9921-a851fb12f0f4'; AC = 1; DC = 1 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '19cbb8fa-5279-450e-9fac-8a3d5fedd0c1'; Setting = '12bbebe6-58d6-4636-95bb-3217ef867c1a'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '238c9fa8-0aad-41ed-83f4-97be242c8f20'; Setting = '29f6c1db-86da-48c5-9fdb-f2b67b1f44da'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '238c9fa8-0aad-41ed-83f4-97be242c8f20'; Setting = '94ac6d29-73ce-41a6-809f-6363ba21b47e'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '238c9fa8-0aad-41ed-83f4-97be242c8f20'; Setting = '9d7815a6-7ee4-497e-8888-515a05f02364'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '238c9fa8-0aad-41ed-83f4-97be242c8f20'; Setting = 'bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '2a737441-1930-4402-8d77-b2bebba308a3'; Setting = '0853a681-27c8-4100-a2fd-82013e970683'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '2a737441-1930-4402-8d77-b2bebba308a3'; Setting = '48e6b7a6-50f5-4782-a5d4-53bb8f07e226'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '2a737441-1930-4402-8d77-b2bebba308a3'; Setting = 'd4e98f31-5ffe-4ce1-be31-1b38b384c009'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '4f971e89-eebd-4455-a8de-9e59040e7347'; Setting = 'a7066653-8d6c-40a8-910e-a1f54b84c7e5'; AC = 2; DC = 2 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '501a4d13-42af-4429-9fd1-a8218c268e20'; Setting = 'ee12f906-d277-404b-b6da-e5fa1a576df5'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '54533251-82be-4824-96c1-47b60b740d00'; Setting = '893dee8e-2bef-41e0-89c6-b55d0929964c'; AC = 100; DC = 100 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '54533251-82be-4824-96c1-47b60b740d00'; Setting = '94d3a615-a899-4ac5-ae2b-e4d8f634367f'; AC = 1; DC = 1 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '54533251-82be-4824-96c1-47b60b740d00'; Setting = 'bc5038f7-23e0-4960-96da-33abaf5935ec'; AC = 100; DC = 100 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '54533251-82be-4824-96c1-47b60b740d00'; Setting = '0cc5b647-c1df-4637-891a-dec35c318583'; AC = 100; DC = 100 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '54533251-82be-4824-96c1-47b60b740d00'; Setting = 'ea062031-0e34-4ff1-9b6d-eb1059334028'; AC = 100; DC = 100 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '7516b95f-f776-4464-8c53-06167f40cc99'; Setting = '3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e'; AC = 600; DC = 600 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '7516b95f-f776-4464-8c53-06167f40cc99'; Setting = 'aded5e82-b909-4619-9949-f5d71dac0bcb'; AC = 100; DC = 100 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '7516b95f-f776-4464-8c53-06167f40cc99'; Setting = 'f1fbfde2-a960-4165-9f88-50667911ce96'; AC = 100; DC = 100 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '7516b95f-f776-4464-8c53-06167f40cc99'; Setting = 'fbd9aa66-9553-4097-ba44-ed6e9d65eab8'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '9596fb26-9850-41fd-ac3e-f7c3c00afd4b'; Setting = '10778347-1370-4ee0-8bbd-33bdacaade49'; AC = 1; DC = 1 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '9596fb26-9850-41fd-ac3e-f7c3c00afd4b'; Setting = '34c7b99f-9a6d-4b3c-8dc7-b6693b78cef4'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = '44f3beca-a7c0-460e-9df2-bb8b99e0cba6'; Setting = '3619c3f2-afb2-4afc-b0e9-e7fef372de36'; AC = 2; DC = 2 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'c763b4ec-0e50-4b6b-9bed-2b92a6ee884e'; Setting = '7ec1751b-60ed-4588-afb5-9819d3d77d90'; AC = 3; DC = 3 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'f693fb01-e858-4f00-b20f-f30e12ac06d6'; Setting = '191f65b5-d45c-4a4f-8aae-1ab8bfd980e6'; AC = 1; DC = 1 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'e276e160-7cb0-43c6-b20b-73f5dce39954'; Setting = 'a1662ab2-9d34-4e53-ba8b-2639b9e20857'; AC = 3; DC = 3 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'e73a048d-bf27-4f12-9731-8b2076e8891f'; Setting = '5dbb7c9f-38e9-40d2-9749-4f8a0e9f640f'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'e73a048d-bf27-4f12-9731-8b2076e8891f'; Setting = '637ea02f-bbcb-4015-8e2c-a1c7b9c0b546'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'e73a048d-bf27-4f12-9731-8b2076e8891f'; Setting = '8183ba9a-e910-48da-8769-14ae6dc1170a'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'e73a048d-bf27-4f12-9731-8b2076e8891f'; Setting = '9a66d8d7-4ff7-4ef9-b5a2-5a326ca2a469'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'e73a048d-bf27-4f12-9731-8b2076e8891f'; Setting = 'bcded951-187b-4d05-bccc-f7e51960c258'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'e73a048d-bf27-4f12-9731-8b2076e8891f'; Setting = 'd8742dcb-3e6a-4b3c-b3fe-374623cdcf06'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'e73a048d-bf27-4f12-9731-8b2076e8891f'; Setting = 'f3c5027d-cd16-4930-aa6b-90db844a8f00'; AC = 0; DC = 0 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'de830923-a562-41af-a086-e3a2c6bad2da'; Setting = '13d09884-f74e-474a-a852-b6bde8ad03a8'; AC = 100; DC = 100 }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Subgroup = 'de830923-a562-41af-a086-e3a2c6bad2da'; Setting = 'e69653ca-cf7f-4f05-aa73-cb833fa90ad4'; AC = 0; DC = 0 }
+        # hibernate, lock & sleep menu, fast boot, power throttling
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power'; Name = 'HibernateEnabled'; Value = 0 }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power'; Name = 'HibernateEnabledDefault'; Value = 0 }
+        @{ Path = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings'; Name = 'ShowLockOption'; Value = 0 }
+        @{ Path = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings'; Name = 'ShowSleepOption'; Value = 0 }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power'; Name = 'HiberbootEnabled'; Value = 0 }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling'; Name = 'PowerThrottlingOff'; Value = 1 }
+        # unhidden power settings
+        @{ Path = 'HKLM:\System\ControlSet001\Control\Power\PowerSettings\2a737441-1930-4402-8d77-b2bebba308a3\0853a681-27c8-4100-a2fd-82013e970683'; Name = 'Attributes'; Value = 0 }
+        @{ Path = 'HKLM:\System\ControlSet001\Control\Power\PowerSettings\2a737441-1930-4402-8d77-b2bebba308a3\d4e98f31-5ffe-4ce1-be31-1b38b384c009'; Name = 'Attributes'; Value = 0 }
+        @{ Path = 'HKLM:\System\ControlSet001\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583'; Name = 'Attributes'; Value = 0 }
+        @{ Path = 'HKLM:\System\ControlSet001\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\ea062031-0e34-4ff1-9b6d-eb1059334028'; Name = 'Attributes'; Value = 0 }
+        # chrome and discord may not keep the display awake (powercfg /requestsoverride)
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerRequestOverride\Process'; Name = 'chrome.exe'; Value = 7 }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerRequestOverride\Process'; Name = 'Discord.exe'; Value = 7 }
+    ) `
+    -RevertTarget @(
+        # standard plans restored (balanced active), akari plan gone
+        @{ ActivePowerScheme = '381b4222-f694-41f0-9685-ff5bb260df2e' }
+        @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Absent = $true }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power'; Name = 'HibernateEnabled'; Absent = $true }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power'; Name = 'HibernateEnabledDefault'; Value = 1 }
+        @{ Path = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings'; KeyAbsent = $true }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power'; Name = 'HiberbootEnabled'; Value = 1 }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling'; KeyAbsent = $true }
+        @{ Path = 'HKLM:\System\ControlSet001\Control\Power\PowerSettings\2a737441-1930-4402-8d77-b2bebba308a3\0853a681-27c8-4100-a2fd-82013e970683'; Name = 'Attributes'; Value = 1 }
+        @{ Path = 'HKLM:\System\ControlSet001\Control\Power\PowerSettings\2a737441-1930-4402-8d77-b2bebba308a3\d4e98f31-5ffe-4ce1-be31-1b38b384c009'; Name = 'Attributes'; Value = 1 }
+        @{ Path = 'HKLM:\System\ControlSet001\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583'; Name = 'Attributes'; Value = 1 }
+        @{ Path = 'HKLM:\System\ControlSet001\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\ea062031-0e34-4ff1-9b6d-eb1059334028'; Name = 'Attributes'; Value = 1 }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerRequestOverride\Process'; Name = 'chrome.exe'; Absent = $true }
+        @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerRequestOverride\Process'; Name = 'Discord.exe'; Absent = $true }
+    ) `
     -Apply {
 # import ultimate power plan
 cmd /c "powercfg /duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 99999999-9999-9999-9999-999999999999 >nul 2>&1"

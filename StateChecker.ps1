@@ -94,11 +94,15 @@ function ConvertTo-FeatureState([string]$State) {
     }
 }
 
-# one target entry -> what kind of setting it is, its key, a label for the log, and what it expects
-#   registry: @{ Path; Name; Value | Absent }   service: @{ Service; StartType | Absent }
-#   task: @{ Task = '\Path\Name'; Enabled | Absent }   feature: @{ Feature; State }
+# one target entry -> the settings it declares: kind, key, a label for the log, what it expects, and its Parent
+# (the registry key or power plan it lives in). An entry that deletes a key or a power plan becomes @{ Deletes = <parent> }.
+#   registry: @{ Path; Name; Value | Absent }  or  @{ Path; KeyAbsent = $true }
+#   service: @{ Service; StartType | Absent }   task: @{ Task = '\Path\Name'; Enabled | Absent }   feature: @{ Feature; State }
+#   power: @{ ActivePowerScheme = guid }  |  @{ PowerScheme; Subgroup; Setting; AC; DC }  |  @{ PowerScheme; Absent = $true }
+#   boot: @{ Boot = 'element'; Value | Absent; BootEntry = '{current}' }
 function Get-EntryInfo($s) {
     $absent = [bool]$s.Absent
+    if ($s.KeyAbsent) { return @{ Deletes = (Get-KeyPath $s.Path) } }
     if ($s.Service) {
         $v = if ($s.StartType -eq 'Auto') { 'Automatic' } else { $s.StartType }
         return @{ Kind = 'Service'; Target = $s.Service; Key = 'service|' + $s.Service.ToLowerInvariant(); Label = "service $($s.Service)"; Value = $v; Absent = $absent }
@@ -109,38 +113,58 @@ function Get-EntryInfo($s) {
     if ($s.Feature) {
         return @{ Kind = 'Feature'; Target = $s.Feature; Key = 'feature|' + $s.Feature.ToLowerInvariant(); Label = "feature $($s.Feature)"; Value = (ConvertTo-FeatureState $s.State); Absent = $absent }
     }
-    return @{ Kind = 'Registry'; Key = (Get-SettingKey $s.Path $s.Name); KeyPath = (Get-KeyPath $s.Path); Path = $s.Path; Name = $s.Name
+    if ($s.ActivePowerScheme) {
+        return @{ Kind = 'ActivePowerScheme'; Key = 'power|active'; Label = 'active power plan'; Value = $s.ActivePowerScheme; Absent = $false }
+    }
+    if ($s.PowerScheme) {
+        $plan = 'power|' + $s.PowerScheme.ToLowerInvariant()
+        # a plan with no subgroup named is the whole plan: deleting it removes every value in it
+        if (-not $s.Subgroup) { return @{ Deletes = $plan } }
+        $sources = if ($s.Source) { @($s.Source) } else { @('AC', 'DC') | Where-Object { $null -ne $s[$_] } }
+        foreach ($src in $sources) {
+            $src = $src.ToUpperInvariant()
+            @{ Kind = 'Power'; Key = "$plan|$($s.Subgroup)|$($s.Setting)|$src".ToLowerInvariant(); Parent = $plan
+                Scheme = $s.PowerScheme; Subgroup = $s.Subgroup; Setting = $s.Setting; Source = $src
+                Label = "power setting $($s.Setting) ($src) in plan $($s.PowerScheme)"; Value = $s[$src]; Absent = $absent }
+        }
+        return
+    }
+    if ($s.Boot) {
+        $entry = if ($s.BootEntry) { $s.BootEntry } else { '{current}' }
+        return @{ Kind = 'Boot'; Target = $s.Boot; BootEntry = $entry; Key = "boot|$entry|$($s.Boot)".ToLowerInvariant(); Label = "boot $entry $($s.Boot)"; Value = $s.Value; Absent = $absent }
+    }
+    return @{ Kind = 'Registry'; Key = (Get-SettingKey $s.Path $s.Name); Parent = (Get-KeyPath $s.Path); Path = $s.Path; Name = $s.Name
         Label = "$($s.Path)\$($s.Name)"; Value = $s.Value; Absent = $absent }
 }
 
-# the key a reading for this entry is stored under
-function Get-EntryKey($Entry) { (Get-EntryInfo $Entry).Key }
+# the key a reading for this entry is stored under (the first, for a power entry that declares AC and DC)
+function Get-EntryKey($Entry) { @(Get-EntryInfo $Entry)[0].Key }
 
-# a target in order -> what it leaves behind: the last word on each setting, plus the registry keys it deletes
+# a target in order -> what it leaves behind: the last word on each setting, plus the registry keys and power plans it deletes
 function Resolve-Target($Target) {
     $list = if ($Target -is [string]) { ConvertFrom-RegText $Target } else { @($Target) }
     $values = [ordered]@{}
     $deleted = [System.Collections.Generic.List[string]]::new()
     foreach ($s in $list) {
         if ($null -eq $s) { continue }
-        if ($s.KeyAbsent) {
-            # deleting a key drops every value under it that this target set earlier
-            $kp = Get-KeyPath $s.Path
-            foreach ($k in @($values.Keys)) { if ($values[$k].KeyPath -and (Test-UnderKey $values[$k].KeyPath $kp)) { $values.Remove($k) } }
-            $deleted.Add($kp)
-            continue
+        foreach ($info in @(Get-EntryInfo $s)) {
+            if ($info.Deletes) {
+                # deleting drops every value under it that this target set earlier
+                foreach ($k in @($values.Keys)) { if ($values[$k].Parent -and (Test-UnderKey $values[$k].Parent $info.Deletes)) { $values.Remove($k) } }
+                $deleted.Add($info.Deletes)
+                continue
+            }
+            if ($values.Contains($info.Key)) { $values.Remove($info.Key) }
+            $values[$info.Key] = $info
         }
-        $info = Get-EntryInfo $s
-        if ($values.Contains($info.Key)) { $values.Remove($info.Key) }
-        $values[$info.Key] = $info
     }
     return @{ Values = $values; Deleted = $deleted }
 }
 
-# what a resolved target expects of one setting: its entry, absent when a deleted key covers it, or $null when it does not say
+# what a resolved target expects of one setting: its entry, absent when a deletion covers it, or $null when it does not say
 function Get-Expectation($Resolved, $Info) {
     if ($Resolved.Values.Contains($Info.Key)) { return $Resolved.Values[$Info.Key] }
-    if ($Info.KeyPath) { foreach ($d in $Resolved.Deleted) { if (Test-UnderKey $Info.KeyPath $d) { return @{ Absent = $true } } } }
+    if ($Info.Parent) { foreach ($d in $Resolved.Deleted) { if (Test-UnderKey $Info.Parent $d) { return @{ Absent = $true } } } }
     return $null
 }
 
@@ -186,24 +210,26 @@ function Get-CompareSettings($ApplyTarget, $RevertTarget) {
             if ($seen.ContainsKey($k)) { continue }
             $seen[$k] = $true
             $v = $side.Values[$k]
-            # what the machine reader needs: Kind plus Path/Name (registry) or Target (service, task, feature)
-            $c = @{ Key = $k; Kind = $v.Kind; Target = $v.Target; Path = $v.Path; Name = $v.Name; Label = $v.Label
-                Apply = (Get-Expectation $a $v); Revert = (Get-Expectation $r $v) }
+            # the setting's own fields tell the machine reader what to read (Kind plus Path/Name, Target, Scheme..., BootEntry)
+            $c = $v.Clone()
+            $c.Apply = Get-Expectation $a $v
+            $c.Revert = Get-Expectation $r $v
             if (-not (Test-SameExpectation $c.Apply $c.Revert)) { $c }
         }
     }
 }
 
 # targets + readings -> @{ Result; Reason }. Unknown wins; Applied / Not applied need every compared setting to match that target.
+# A reading of @{ NotOnMachine = $true } (a power setting this hardware does not have) leaves that setting out.
 function Get-DetectResult($ApplyTarget, $RevertTarget, [hashtable]$Readings) {
-    $compare = @(Get-CompareSettings $ApplyTarget $RevertTarget)
+    $compare = @(Get-CompareSettings $ApplyTarget $RevertTarget | Where-Object { -not ($Readings -and $Readings[$_.Key].NotOnMachine) })
     $unread = @()
     foreach ($c in $compare) {
         $r = if ($Readings) { $Readings[$c.Key] } else { $null }
         if ($null -eq $r) { $unread += "$($c.Label): not read" }
         elseif ($r.Error) { $unread += "$($c.Label): $($r.Error)" }
         # a missing service, task or feature is unreadable, unless a target is the one that removes it
-        elseif ($c.Kind -ne 'Registry' -and -not $r.Present -and -not ($c.Apply.Absent -or $c.Revert.Absent)) { $unread += "$($c.Label): not found" }
+        elseif ($c.Kind -in 'Service', 'Task', 'Feature' -and -not $r.Present -and -not ($c.Apply.Absent -or $c.Revert.Absent)) { $unread += "$($c.Label): not found" }
     }
     if ($unread.Count) { return @{ Result = 'Unknown'; Reason = ($unread -join '; ') } }
     $applied = $true; $reverted = $true
