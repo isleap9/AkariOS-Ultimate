@@ -39,6 +39,9 @@ $script:SpecData = $null
 $script:SpecJob = $null
 $script:SpecPending = $false
 $script:CopiedUntil = $null
+# a spec read still running after this many seconds is abandoned
+$script:SpecTimeoutSec = 20
+$script:SpecStale = [System.Collections.Generic.List[object]]::new()
 $PrioKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl'
 
 function Add-Tweak {
@@ -150,7 +153,7 @@ function Get-Specs {
     $cpuFields = 4
     $cpuSuccess = 0
     try {
-        $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop | Select-Object -First 1
+        $cpu = Get-CimInstance -ClassName Win32_Processor -OperationTimeoutSec 10 -ErrorAction Stop | Select-Object -First 1
         if ($cpu) {
             if ($cpu.Name) { $cpuModel = $cpu.Name.Trim(); $cpuSuccess++ }
             if ($cpu.NumberOfCores -gt 0) { $cpuCores = $cpu.NumberOfCores; $cpuSuccess++ }
@@ -173,7 +176,7 @@ function Get-Specs {
     $ramFields = 3
     $ramSuccess = 0
     try {
-        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -OperationTimeoutSec 10 -ErrorAction Stop
         if ($os -and $os.TotalVisibleMemorySize -gt 0) {
             $totalKB = $os.TotalVisibleMemorySize
             $freeKB = $os.FreePhysicalMemory
@@ -196,7 +199,7 @@ function Get-Specs {
     $winFields = 3
     $winSuccess = 0
     try {
-        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -OperationTimeoutSec 10 -ErrorAction Stop
         if ($os) {
             if ($os.Caption) { $winEdition = $os.Caption; $winSuccess++ }
             if ($os.BuildNumber) { $winBuild = $os.BuildNumber; $winSuccess++ }
@@ -222,7 +225,7 @@ function Get-Specs {
     $gpuSuccess = 0
     $gpuTotal = 0
     try {
-        $gpus = @(Get-CimInstance -ClassName Win32_VideoController -ErrorAction Stop)
+        $gpus = @(Get-CimInstance -ClassName Win32_VideoController -OperationTimeoutSec 10 -ErrorAction Stop)
         if ($gpus.Count -eq 0) {
             $result.GPU._Status = 'Failed'
         } else {
@@ -300,7 +303,7 @@ function Get-Specs {
     $diskTotal = 0
     try {
         # fixed drives only (drivetype 3)
-        $disks = @(Get-CimInstance -ClassName Win32_LogicalDisk -ErrorAction Stop | Where-Object { $_.DriveType -eq 3 })
+        $disks = @(Get-CimInstance -ClassName Win32_LogicalDisk -OperationTimeoutSec 10 -ErrorAction Stop | Where-Object { $_.DriveType -eq 3 })
         if ($disks.Count -eq 0) {
             $result.Disk._Status = 'Failed'
         } else {
@@ -334,14 +337,14 @@ function Get-Specs {
     $mbFields = 4
     $mbSuccess = 0
     try {
-        $board = Get-CimInstance -ClassName Win32_BaseBoard -ErrorAction Stop | Select-Object -First 1
+        $board = Get-CimInstance -ClassName Win32_BaseBoard -OperationTimeoutSec 10 -ErrorAction Stop | Select-Object -First 1
         if ($board) {
             if (Test-SmbiosValue $board.Manufacturer) { $mbManufacturer = $board.Manufacturer.Trim(); $mbSuccess++ }
             if (Test-SmbiosValue $board.Product) { $mbProduct = $board.Product.Trim(); $mbSuccess++ }
         }
     } catch { }
     try {
-        $bios = Get-CimInstance -ClassName Win32_BIOS -ErrorAction Stop | Select-Object -First 1
+        $bios = Get-CimInstance -ClassName Win32_BIOS -OperationTimeoutSec 10 -ErrorAction Stop | Select-Object -First 1
         if ($bios) {
             if (Test-SmbiosValue $bios.SMBIOSBIOSVersion) { $biosVersion = $bios.SMBIOSBIOSVersion.Trim(); $mbSuccess++ }
             # smbios date is midnight utc; format in utc with invariant culture so the day and calendar never shift
@@ -365,7 +368,7 @@ function Get-HostIdentity {
     $mdl = 'Not available'
     try {
         # computer maker and model for the home header
-        $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop | Select-Object -First 1
+        $cs = Get-CimInstance -ClassName Win32_ComputerSystem -OperationTimeoutSec 10 -ErrorAction Stop | Select-Object -First 1
         if ($cs) {
             if (Test-SmbiosValue $cs.Manufacturer) { $m = $cs.Manufacturer.Trim() }
             if (Test-SmbiosValue $cs.Model) { $mdl = $cs.Model.Trim() }
@@ -843,7 +846,7 @@ function Start-SpecRead {
     # ps 5.1 cannot bind the generic BeginInvoke overload with $null input, pass an empty completed collection
     $inputCollection = [System.Management.Automation.PSDataCollection[object]]::new()
     $inputCollection.Complete()
-    $script:SpecJob = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke($inputCollection, $resultCollection); ResultCollection = $resultCollection }
+    $script:SpecJob = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke($inputCollection, $resultCollection); ResultCollection = $resultCollection; Deadline = [DateTime]::UtcNow.AddSeconds($script:SpecTimeoutSec) }
     $script:SpecPending = $false
     Set-HomeDim
 }
@@ -864,21 +867,30 @@ $timer.Add_Tick({
     if ($script:CopiedUntil -and [DateTime]::UtcNow -ge $script:CopiedUntil) { $CopySpecs.Content = 'Copy specs'; $script:CopiedUntil = $null }
     # home spec read finished: store the composite and redraw only the cards
     $sj = $script:SpecJob
-    if ($sj -and $sj.Handle.IsCompleted) {
+    # watchdog: a read past its deadline is abandoned so home never stays dimmed
+    $late = ($sj -and -not $sj.Handle.IsCompleted -and $sj.Deadline -and [DateTime]::UtcNow -ge $sj.Deadline)
+    if ($sj -and ($sj.Handle.IsCompleted -or $late)) {
         $had = ($null -ne $script:SpecData)
         $ok = $false
         $msg = $null
-        try {
-            [void]$sj.Ps.EndInvoke($sj.Handle)
-            $result = $sj.ResultCollection
-            if ($null -ne $result -and $result.Count -gt 0) {
-                $last = $result[$result.Count - 1]
-                if ($last -is [hashtable] -and $last.ContainsKey('Specs')) { $script:SpecData = $last; $ok = $true }
-                else { $msg = [string]$last }
-            } else { $msg = 'no result returned' }
-        } catch { $msg = $_.Exception.Message }
-        foreach ($err in $sj.Ps.Streams.Error) { Add-Log "Error: $($err.ToString())" }
-        $sj.Ps.Dispose(); $sj.Rs.Dispose()
+        if ($late) {
+            $msg = "timed out after $($script:SpecTimeoutSec) seconds"
+            # ask the hung pipeline to stop without waiting; it is disposed once it has ended
+            try { [void]$sj.Ps.BeginStop($null, $null) } catch { }
+            $script:SpecStale.Add($sj)
+        } else {
+            try {
+                [void]$sj.Ps.EndInvoke($sj.Handle)
+                $result = $sj.ResultCollection
+                if ($null -ne $result -and $result.Count -gt 0) {
+                    $last = $result[$result.Count - 1]
+                    if ($last -is [hashtable] -and $last.ContainsKey('Specs')) { $script:SpecData = $last; $ok = $true }
+                    else { $msg = [string]$last }
+                } else { $msg = 'no result returned' }
+            } catch { $msg = $_.Exception.Message }
+            foreach ($err in $sj.Ps.Streams.Error) { Add-Log "Error: $($err.ToString())" }
+            $sj.Ps.Dispose(); $sj.Rs.Dispose()
+        }
         $script:SpecJob = $null
         if (-not $ok) {
             if (-not $msg) { $msg = 'no result returned' }
@@ -887,6 +899,14 @@ $timer.Add_Tick({
             Add-Log "Specs: Read failed ($msg).$tail"
         }
         Update-Home
+    }
+    # abandoned spec reads: dispose each one once its pipeline has really ended
+    for ($zi = $script:SpecStale.Count - 1; $zi -ge 0; $zi--) {
+        $z = $script:SpecStale[$zi]
+        if ($z.Handle.IsCompleted) {
+            try { $z.Ps.Dispose(); $z.Rs.Dispose() } catch { }
+            $script:SpecStale.RemoveAt($zi)
+        }
     }
     $j = $script:Job
     if ($j -and $j.Handle.IsCompleted) {
