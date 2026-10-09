@@ -13,8 +13,8 @@
 - [x] **SPEC-04**: User sees disk card with per-volume free/total space for fixed drives
 - [x] **SPEC-05**: User sees motherboard + BIOS card with board manufacturer/product, BIOS version, and release date
 - [x] **SPEC-06**: User sees Windows card with edition, friendly version, and full build number (incl. UBR)
-- [ ] **SPEC-07**: User can copy the full spec text to the clipboard from Home
-- [ ] **SPEC-08**: User sees health-at-a-glance indicators (disk-free % / RAM pressure threshold coloring)
+- [x] **SPEC-07**: User can copy the full spec text to the clipboard from Home
+- [x] **SPEC-08**: User sees health-at-a-glance indicators (disk-free % / RAM pressure threshold coloring)
 
 ### Shell & Navigation
 
@@ -68,8 +68,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SPEC-04 | Phase 2 | Complete |
 | SPEC-05 | Phase 2 | Complete |
 | SPEC-06 | Phase 1 | Complete |
-| SPEC-07 | Phase 4 | Pending |
-| SPEC-08 | Phase 4 | Pending |
+| SPEC-07 | Phase 4 | Complete |
+| SPEC-08 | Phase 4 | Complete |
 | SHELL-01 | Phase 3 | Complete |
 | SHELL-02 | Phase 3 | Complete |
 | SHELL-03 | Phase 3 | Complete |
