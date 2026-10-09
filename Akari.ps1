@@ -624,6 +624,26 @@ function New-FailedSpecs {
     }
 }
 
+# disk health brush: amber below 15% free, red below 10% free, neutral when healthy or a number is missing
+function Get-DiskHealth($free, $total) {
+    if ($null -eq $free -or $null -eq $total -or $free -is [string] -or $total -is [string]) { return 'Tx' }
+    if ([double]$total -le 0) { return 'Tx' }
+    $pct = [double]$free * 100 / [double]$total
+    if ($pct -lt 10) { return 'Bad' }
+    if ($pct -lt 15) { return 'Warn' }
+    return 'Tx'
+}
+
+# ram health brush: amber above 80% used, red above 90% used, neutral when healthy or a number is missing
+function Get-RamHealth($used, $total) {
+    if ($null -eq $used -or $null -eq $total -or $used -is [string] -or $total -is [string]) { return 'Tx' }
+    if ([double]$total -le 0) { return 'Tx' }
+    $pct = [double]$used * 100 / [double]$total
+    if ($pct -gt 90) { return 'Bad' }
+    if ($pct -gt 80) { return 'Warn' }
+    return 'Tx'
+}
+
 # card model: the six cards as plain descriptors, shared by the card renderer and the copy text
 function Get-HomeModel {
     $na = 'Not available'
@@ -661,7 +681,9 @@ function Get-HomeModel {
     $ram = $s.RAM
     $head = if ($ram._Status -eq 'Failed') { $na } else { [string](Fmt-Num $ram.TotalGB '0.0' 'GB') }
     $rl = @()
-    $rl += @{ Label = 'Used'; Value = [string](Fmt-Num $ram.UsedGB '0.0' 'GB') }
+    # used value turns amber / red when memory runs low (a failed read is never coloured)
+    $key = if ($ram._Status -eq 'Failed') { 'Tx' } else { Get-RamHealth $ram.UsedGB $ram.TotalGB }
+    $rl += @{ Label = 'Used'; Value = [string](Fmt-Num $ram.UsedGB '0.0' 'GB'); Key = $key }
     $rl += @{ Label = 'Free'; Value = [string](Fmt-Num $ram.FreeGB '0.0' 'GB') }
     $model.Add(@{ Title = 'RAM'; Blocks = @(@{ Head = $head; Rows = $rl }); Inline = $true })
 
@@ -674,7 +696,9 @@ function Get-HomeModel {
         $head = [string]$v.Drive
         if ($v.Label -is [string] -and -not [string]::IsNullOrWhiteSpace($v.Label)) { $head += '  ' + $v.Label }
         $rl = @()
-        $rl += @{ Label = 'Free'; Value = [string](Fmt-Num $v.FreeGB '0.0' 'GB') }
+        # free value turns amber / red when the system drive runs low (a failed read is never coloured)
+        $key = if ($failed) { 'Tx' } else { Get-DiskHealth $v.FreeGB $v.TotalGB }
+        $rl += @{ Label = 'Free'; Value = [string](Fmt-Num $v.FreeGB '0.0' 'GB'); Key = $key }
         $rl += @{ Label = 'Total'; Value = [string](Fmt-Num $v.TotalGB '0.0' 'GB') }
         $rl += @{ Label = 'File system'; Value = [string]$v.FileSystem }
         $bl += @{ Head = $(if ($failed) { $na } else { $head }); Rows = $rl }
