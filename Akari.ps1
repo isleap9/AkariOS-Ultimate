@@ -38,6 +38,7 @@ $script:Queue  = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
 $script:SpecData = $null
 $script:SpecJob = $null
 $script:SpecPending = $false
+$script:CopiedUntil = $null
 $PrioKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl'
 
 function Add-Tweak {
@@ -381,7 +382,7 @@ try { @{ Specs = Get-Specs; Host = Get-HostIdentity } } catch { $_.Exception.Mes
 
 # ---- window
 $window = [Windows.Markup.XamlReader]::Parse((Get-Content "$Root\UI\MainWindow.xaml" -Raw))
-foreach ($n in 'Nav', 'Search', 'Heading', 'Tuner', 'SvcTuner', 'SvcCur', 'Rows', 'Page', 'Log', 'Hex', 'Dec', 'Logo', 'HomePanel', 'HostName', 'HostSub', 'Cards') { Set-Variable $n $window.FindName($n) }
+foreach ($n in 'Nav', 'Search', 'Heading', 'Tuner', 'SvcTuner', 'SvcCur', 'Rows', 'Page', 'Log', 'Hex', 'Dec', 'Logo', 'HomePanel', 'HostName', 'HostSub', 'Cards', 'CopySpecs') { Set-Variable $n $window.FindName($n) }
 
 $logoPath = "$Root\Assets\AkariLogo.png"
 if (Test-Path $logoPath) {
@@ -577,7 +578,8 @@ function Add-Headline($card, [string]$text, [string]$brushKey = 'Tx') {
     [void]$card.Child.Children.Add($tb)
 }
 
-function Add-Row($card, [string]$label, [string]$value) {
+function Add-Row($card, [string]$label, [string]$value, [string]$brushKey = 'Tx') {
+    if (-not $brushKey) { $brushKey = 'Tx' }
     $sp = $card.Child
     $first = (@($sp.Children | Where-Object { $_ -is [Windows.Controls.Grid] }).Count -eq 0)
     $g = [Windows.Controls.Grid]::new()
@@ -594,7 +596,8 @@ function Add-Row($card, [string]$label, [string]$value) {
     $v = [Windows.Controls.TextBlock]::new()
     $v.Text = $value
     $v.FontSize = 13
-    $v.Foreground = $window.FindResource($(if ($value -eq 'Not available') { 'Mu' } else { 'Tx' }))
+    # the not available sentinel is always muted, whatever brush the caller asked for
+    $v.Foreground = $window.FindResource($(if ($value -eq 'Not available') { 'Mu' } else { $brushKey }))
     $v.TextWrapping = [Windows.TextWrapping]::Wrap
     [Windows.Controls.Grid]::SetColumn($v, 1)
     [void]$g.Children.Add($l); [void]$g.Children.Add($v)
@@ -621,6 +624,103 @@ function New-FailedSpecs {
     }
 }
 
+# card model: the six cards as plain descriptors, shared by the card renderer and the copy text
+function Get-HomeModel {
+    $na = 'Not available'
+    $s = $script:SpecData.Specs
+    $model = [System.Collections.Generic.List[object]]::new()
+
+    # cpu card: model, cores / threads, clock
+    $cpu = $s.CPU
+    $head = if ($cpu._Status -eq 'Failed') { $na } else { [string]$cpu.Model }
+    $hasC = ($null -ne $cpu.Cores -and [string]$cpu.Cores -ne $na)
+    $hasT = ($null -ne $cpu.Threads -and [string]$cpu.Threads -ne $na)
+    $cores = if ($hasC -and $hasT) { "$($cpu.Cores) / $($cpu.Threads) threads" } elseif ($hasC) { "$($cpu.Cores)" } elseif ($hasT) { "$($cpu.Threads) threads" } else { $na }
+    $rl = @()
+    $rl += @{ Label = 'Cores'; Value = [string]$cores }
+    $rl += @{ Label = 'Speed'; Value = [string](Fmt-Num $cpu.SpeedMHz '0.00' 'GHz' 1000) }
+    $model.Add(@{ Title = 'CPU'; Blocks = @(@{ Head = $head; Rows = $rl }); Inline = $false })
+
+    # gpu card: one block per adapter, in read order
+    $failed = ($s.GPU._Status -eq 'Failed')
+    $list = @($s.GPU.Adapters)
+    $bl = @()
+    for ($i = 0; $i -lt $list.Count; $i++) {
+        $a = $list[$i]
+        $rl = @()
+        $rl += @{ Label = 'VRAM'; Value = [string](Fmt-Num $a.VRAM_GB '0.0' 'GB') }
+        $rl += @{ Label = 'Driver'; Value = [string]$a.DriverVersion }
+        if ([string]$a.Status -ne 'OK') { $rl += @{ Label = 'Status'; Value = [string]$a.Status } }
+        $bl += @{ Head = $(if ($failed) { $na } else { [string]$a.Model }); Rows = $rl }
+    }
+    # zero adapters: headline only, no rows
+    if (-not $list.Count) { $bl += @{ Head = $na; Rows = @() } }
+    $model.Add(@{ Title = 'GPU'; Blocks = $bl; Inline = $false })
+
+    # ram card: total, used, free
+    $ram = $s.RAM
+    $head = if ($ram._Status -eq 'Failed') { $na } else { [string](Fmt-Num $ram.TotalGB '0.0' 'GB') }
+    $rl = @()
+    $rl += @{ Label = 'Used'; Value = [string](Fmt-Num $ram.UsedGB '0.0' 'GB') }
+    $rl += @{ Label = 'Free'; Value = [string](Fmt-Num $ram.FreeGB '0.0' 'GB') }
+    $model.Add(@{ Title = 'RAM'; Blocks = @(@{ Head = $head; Rows = $rl }); Inline = $true })
+
+    # disk card: system drive only (the read still returns every fixed volume)
+    $failed = ($s.Disk._Status -eq 'Failed')
+    $list = @(@($s.Disk.Volumes) | Where-Object { [string]$_.Drive -eq $env:SystemDrive })
+    $bl = @()
+    for ($i = 0; $i -lt $list.Count; $i++) {
+        $v = $list[$i]
+        $head = [string]$v.Drive
+        if ($v.Label -is [string] -and -not [string]::IsNullOrWhiteSpace($v.Label)) { $head += '  ' + $v.Label }
+        $rl = @()
+        $rl += @{ Label = 'Free'; Value = [string](Fmt-Num $v.FreeGB '0.0' 'GB') }
+        $rl += @{ Label = 'Total'; Value = [string](Fmt-Num $v.TotalGB '0.0' 'GB') }
+        $rl += @{ Label = 'File system'; Value = [string]$v.FileSystem }
+        $bl += @{ Head = $(if ($failed) { $na } else { $head }); Rows = $rl }
+    }
+    # zero volumes: headline only, no rows
+    if (-not $list.Count) { $bl += @{ Head = $na; Rows = @() } }
+    $model.Add(@{ Title = 'Disk'; Blocks = $bl; Inline = $false })
+
+    # board card: maker + product, bios version and date
+    $mb = $s.Motherboard
+    $parts = @(@($mb.Manufacturer, $mb.Product) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) -and [string]$_ -ne $na })
+    $head = if ($mb._Status -eq 'Failed') { $na } elseif ($parts.Count) { $parts -join ' ' } else { $na }
+    $rl = @()
+    $rl += @{ Label = 'BIOS'; Value = [string]$mb.BIOSVersion }
+    $rl += @{ Label = 'Released'; Value = [string]$mb.ReleaseDate }
+    $model.Add(@{ Title = 'Board'; Blocks = @(@{ Head = $head; Rows = $rl }); Inline = $false })
+
+    # windows card: edition (without the leading Microsoft), version, build
+    $win = $s.Windows
+    $head = if ($win._Status -eq 'Failed') { $na } else { [string]$win.Edition -replace '^Microsoft\s+', '' }
+    $rl = @()
+    $rl += @{ Label = 'Version'; Value = [string]$win.Version }
+    $rl += @{ Label = 'Build'; Value = [string]$win.Build }
+    $model.Add(@{ Title = 'Windows'; Blocks = @(@{ Head = $head; Rows = $rl }); Inline = $false })
+
+    return $model.ToArray()
+}
+
+# header maker / model line from a read composite: 'Maker - Model' joined by a middle dot, or empty
+function Get-HostLine($d) {
+    $na = 'Not available'
+    $hm = $d.Host.Manufacturer
+    $hd = $d.Host.Model
+    # smbios filler fallback: one filler value discards the whole system pair for the board pair
+    if ($hm -eq $na -or $hd -eq $na -or [string]::IsNullOrWhiteSpace([string]$hm) -or [string]::IsNullOrWhiteSpace([string]$hd)) {
+        $hm = $d.Specs.Motherboard.Manufacturer
+        $hd = $d.Specs.Motherboard.Product
+    }
+    $hparts = @(@($hm, $hd) | Where-Object { $_ -and [string]$_ -ne $na })
+    if ($hparts.Count -gt 0) {
+        $sep = ' ' + [string][char]0x00B7 + ' '
+        return ($hparts -join $sep)
+    }
+    return ''
+}
+
 function Update-Home {
     $HostName.Text = $env:COMPUTERNAME
     $Cards.Children.Clear()
@@ -628,6 +728,8 @@ function Update-Home {
     $dim = ($null -ne $script:SpecJob -or $script:SpecPending)
     $Cards.Opacity = if ($dim) { 0.6 } else { 1 }
     $HostSub.Opacity = $Cards.Opacity
+    # copy is possible once the first read of the session has finished
+    if ($CopySpecs) { $CopySpecs.IsEnabled = ($null -ne $script:SpecData) }
     if ($null -eq $script:SpecData) {
         # first read of the session has not finished yet: every card shows the placeholder
         $HostSub.Text = ''
@@ -639,92 +741,24 @@ function Update-Home {
         }
         return
     }
-    $na = 'Not available'
-    $s = $script:SpecData.Specs
 
-    # cpu card: model, cores / threads, clock
-    $cpu = $s.CPU
-    $card = New-Card 'CPU'
-    if ($cpu._Status -eq 'Failed') { Add-Headline $card $na 'Mu' } else { Add-Headline $card $cpu.Model }
-    $hasC = ($null -ne $cpu.Cores -and [string]$cpu.Cores -ne $na)
-    $hasT = ($null -ne $cpu.Threads -and [string]$cpu.Threads -ne $na)
-    $cores = if ($hasC -and $hasT) { "$($cpu.Cores) / $($cpu.Threads) threads" } elseif ($hasC) { "$($cpu.Cores)" } elseif ($hasT) { "$($cpu.Threads) threads" } else { $na }
-    Add-Row $card 'Cores' $cores
-    Add-Row $card 'Speed' (Fmt-Num $cpu.SpeedMHz '0.00' 'GHz' 1000)
-    [void]$Cards.Children.Add($card)
-
-    # gpu card: one block per adapter, divider between blocks
-    $card = New-Card 'GPU'
-    $failed = ($s.GPU._Status -eq 'Failed')
-    $list = @($s.GPU.Adapters)
-    # zero adapters: headline only, no rows and no dividers
-    if (-not $list.Count) { Add-Headline $card $na 'Mu' }
-    for ($i = 0; $i -lt $list.Count; $i++) {
-        $a = $list[$i]
-        if ($i -gt 0) { Add-Divider $card }
-        if ($failed) { Add-Headline $card $na 'Mu' } else { Add-Headline $card $a.Model }
-        Add-Row $card 'VRAM' (Fmt-Num $a.VRAM_GB '0.0' 'GB')
-        Add-Row $card 'Driver' $a.DriverVersion
-        if ([string]$a.Status -ne 'OK') { Add-Row $card 'Status' $a.Status }
+    # draw every card from the shared card model, divider between blocks
+    foreach ($cm in Get-HomeModel) {
+        $card = New-Card $cm.Title
+        $first = $true
+        foreach ($blk in $cm.Blocks) {
+            if (-not $first) { Add-Divider $card }
+            $first = $false
+            Add-Headline $card $blk.Head
+            foreach ($r in $blk.Rows) { Add-Row $card $r.Label $r.Value $(if ($r.Key) { $r.Key } else { 'Tx' }) }
+        }
+        [void]$Cards.Children.Add($card)
     }
-    [void]$Cards.Children.Add($card)
-
-    # ram card: total, used, free
-    $ram = $s.RAM
-    $card = New-Card 'RAM'
-    if ($ram._Status -eq 'Failed') { Add-Headline $card $na 'Mu' } else { Add-Headline $card (Fmt-Num $ram.TotalGB '0.0' 'GB') }
-    Add-Row $card 'Used' (Fmt-Num $ram.UsedGB '0.0' 'GB')
-    Add-Row $card 'Free' (Fmt-Num $ram.FreeGB '0.0' 'GB')
-    [void]$Cards.Children.Add($card)
-
-    # disk card: system drive only (the read still returns every fixed volume)
-    $card = New-Card 'Disk'
-    $failed = ($s.Disk._Status -eq 'Failed')
-    $list = @(@($s.Disk.Volumes) | Where-Object { [string]$_.Drive -eq $env:SystemDrive })
-    # zero volumes: headline only, no rows and no dividers
-    if (-not $list.Count) { Add-Headline $card $na 'Mu' }
-    for ($i = 0; $i -lt $list.Count; $i++) {
-        $v = $list[$i]
-        if ($i -gt 0) { Add-Divider $card }
-        $head = [string]$v.Drive
-        if ($v.Label -is [string] -and -not [string]::IsNullOrWhiteSpace($v.Label)) { $head += '  ' + $v.Label }
-        if ($failed) { Add-Headline $card $na 'Mu' } else { Add-Headline $card $head }
-        Add-Row $card 'Free' (Fmt-Num $v.FreeGB '0.0' 'GB')
-        Add-Row $card 'Total' (Fmt-Num $v.TotalGB '0.0' 'GB')
-        Add-Row $card 'File system' $v.FileSystem
-    }
-    [void]$Cards.Children.Add($card)
-
-    # board card: maker + product, bios version and date
-    $mb = $s.Motherboard
-    $card = New-Card 'Board'
-    $parts = @(@($mb.Manufacturer, $mb.Product) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) -and [string]$_ -ne $na })
-    if ($mb._Status -eq 'Failed') { Add-Headline $card $na 'Mu' } else { Add-Headline $card $(if ($parts.Count) { $parts -join ' ' } else { $na }) }
-    Add-Row $card 'BIOS' $mb.BIOSVersion
-    Add-Row $card 'Released' $mb.ReleaseDate
-    [void]$Cards.Children.Add($card)
-
-    # windows card: edition (without the leading Microsoft), version, build
-    $win = $s.Windows
-    $card = New-Card 'Windows'
-    if ($win._Status -eq 'Failed') { Add-Headline $card $na 'Mu' } else { Add-Headline $card ([string]$win.Edition -replace '^Microsoft\s+', '') }
-    Add-Row $card 'Version' $win.Version
-    Add-Row $card 'Build' $win.Build
-    [void]$Cards.Children.Add($card)
 
     # header maker / model, resolved from the read already in hand (no second query)
-    $d = $script:SpecData
-    $hm = $d.Host.Manufacturer
-    $hd = $d.Host.Model
-    # smbios filler fallback: one filler value discards the whole system pair for the board pair
-    if ($hm -eq $na -or $hd -eq $na -or [string]::IsNullOrWhiteSpace([string]$hm) -or [string]::IsNullOrWhiteSpace([string]$hd)) {
-        $hm = $d.Specs.Motherboard.Manufacturer
-        $hd = $d.Specs.Motherboard.Product
-    }
-    $hparts = @(@($hm, $hd) | Where-Object { $_ -and [string]$_ -ne $na })
-    if ($hparts.Count -gt 0) {
-        $sep = ' ' + [string][char]0x00B7 + ' '
-        $HostSub.Text = ($hparts -join $sep)
+    $line = Get-HostLine $script:SpecData
+    if ($line) {
+        $HostSub.Text = $line
         $HostSub.ToolTip = $HostSub.Text
         $HostSub.Visibility = 'Visible'
     } else {
@@ -732,6 +766,43 @@ function Update-Home {
         $HostSub.ToolTip = $null
         $HostSub.Visibility = 'Collapsed'
     }
+}
+
+# plain-text spec sheet for the clipboard, written from the same card model the cards draw
+function Get-SpecText {
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $lines.Add($env:COMPUTERNAME)
+    # maker / model line only when the header shows it
+    $hl = Get-HostLine $script:SpecData
+    if ($hl) { $lines.Add($hl) }
+    $lines.Add('')
+    foreach ($cm in Get-HomeModel) {
+        foreach ($blk in $cm.Blocks) {
+            $line = [string]$cm.Title + ': ' + [string]$blk.Head
+            if ($cm.Inline) {
+                # ram card: rows ride on the headline line
+                $line += ' (' + ((@($blk.Rows) | ForEach-Object { [string]$_.Label + ' ' + [string]$_.Value }) -join ', ') + ')'
+                $lines.Add($line)
+            } else {
+                $lines.Add($line)
+                foreach ($r in $blk.Rows) { $lines.Add('  ' + [string]$r.Label + ': ' + [string]$r.Value) }
+            }
+        }
+    }
+    return ($lines -join "`r`n")
+}
+
+# copy specs button: put the spec sheet on the clipboard and flash the label for about two seconds
+function Copy-Specs {
+    if ($null -eq $script:SpecData) { return }
+    try {
+        [Windows.Clipboard]::SetText((Get-SpecText))
+        $CopySpecs.Content = 'Copied'
+    } catch {
+        # another program is holding the clipboard
+        $CopySpecs.Content = 'Copy failed'
+    }
+    $script:CopiedUntil = [DateTime]::UtcNow.AddSeconds(2)
 }
 
 function Start-SpecRead {
@@ -765,6 +836,8 @@ $timer.Interval = [TimeSpan]::FromMilliseconds(150)
 $timer.Add_Tick({
     $m = $null
     while ($script:Queue.TryDequeue([ref]$m)) { Add-Log $m }
+    # copy specs label: back to its normal text once the two second flash has passed
+    if ($script:CopiedUntil -and [DateTime]::UtcNow -ge $script:CopiedUntil) { $CopySpecs.Content = 'Copy specs'; $script:CopiedUntil = $null }
     # home spec read finished: store the composite and redraw only the cards
     $sj = $script:SpecJob
     if ($sj -and $sj.Handle.IsCompleted) {
@@ -874,6 +947,8 @@ $Nav.AddHandler([Windows.Controls.Primitives.ToggleButton]::CheckedEvent, [Windo
     Show-Page
 })
 $Search.Add_TextChanged({ Show-Page })
+# copy specs button on the home header
+$CopySpecs.Add_Click({ Copy-Specs })
 
 # ---- Win32PrioritySeparation tuner
 function Get-Chip([string]$g) {
