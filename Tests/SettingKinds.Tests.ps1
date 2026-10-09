@@ -18,6 +18,18 @@ Describe 'Service startup types' {
         Get-Result $a $r @{ $k = (New-Reading 'Manual') } | Should Be 'Partly applied'
     }
 
+    It 'tells delayed start apart from plain Automatic' {
+        $ap = @(@{ Service = 'Svc'; StartType = 'Automatic' }); $rv = @(@{ Service = 'Svc'; StartType = 'Disabled' })
+        $ks = Get-EntryKey @{ Service = 'Svc' }
+        Get-Result $ap $rv @{ $ks = (New-Reading 'AutomaticDelayed') } | Should Be 'Partly applied'
+    }
+
+    It 'is Partly applied when one service matches Apply and another Revert' {
+        $ap = @(@{ Service = 'A'; StartType = 'Disabled' }; @{ Service = 'B'; StartType = 'Disabled' })
+        $rv = @(@{ Service = 'A'; StartType = 'Manual' }; @{ Service = 'B'; StartType = 'Manual' })
+        Get-Result $ap $rv @{ (Get-EntryKey @{ Service = 'A' }) = (New-Reading 'Disabled'); (Get-EntryKey @{ Service = 'B' }) = (New-Reading 'Manual') } | Should Be 'Partly applied'
+    }
+
     It 'accepts Auto for Automatic and ignores case' {
         Get-Result @(@{ Service = 'DiagTrack'; StartType = 'Auto' }) $a @{ $k = (New-Reading 'automatic') } | Should Be 'Applied'
     }
@@ -64,6 +76,12 @@ Describe 'Scheduled tasks' {
         $d.Reason | Should Match 'ScheduledDefrag'
     }
 
+    It 'is Partly applied when one task matches Apply and another Revert' {
+        $t2 = '\Microsoft\Windows\Other\Task'
+        $ap = $a + @{ Task = $t2; Enabled = $false }; $rv = $r + @{ Task = $t2; Enabled = $true }
+        Get-Result $ap $rv @{ $k = (New-Reading $false); (Get-EntryKey @{ Task = $t2 }) = (New-Reading $true) } | Should Be 'Partly applied'
+    }
+
     It 'treats a missing task as matching a target that removes it' {
         Get-Result @(@{ Task = $t; Absent = $true }) $r @{ $k = $Gone } | Should Be 'Applied'
     }
@@ -85,6 +103,11 @@ Describe 'Optional features' {
     It 'is Applied / Not applied by state' {
         Get-Result $a $r @{ $k = (New-Reading 'Disabled') } | Should Be 'Applied'
         Get-Result $a $r @{ $k = (New-Reading 'Enabled') } | Should Be 'Not applied'
+    }
+
+    It 'is Partly applied when one feature matches Apply and another Revert' {
+        $ap = $a + @{ Feature = 'Other'; State = 'Disabled' }; $rv = $r + @{ Feature = 'Other'; State = 'Enabled' }
+        Get-Result $ap $rv @{ $k = (New-Reading 'Disabled'); (Get-EntryKey @{ Feature = 'Other' }) = (New-Reading 'Enabled') } | Should Be 'Partly applied'
     }
 
     It 'counts a removed payload as disabled' {

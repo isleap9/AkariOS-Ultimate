@@ -464,25 +464,42 @@ function Read-ServiceStart([string]$Name) {
     }
     $s = $script:services[$Name]
     if (-not $s) { return @{ Present = $false } }
-    return @{ Present = $true; Value = $s.StartType.ToString() }
+    $reg = Read-RegValue "HKLM\SYSTEM\CurrentControlSet\Services\$Name" 'DeleteFlag'
+    # a service marked for deletion (still running, removed at restart) is already gone as far as the tweak is concerned
+    if ($reg.Present -and $reg.Value -eq 1) { return @{ Present = $false } }
+    $type = $s.StartType.ToString()
+    # the service list reports delayed start as plain Automatic
+    if ($type -eq 'Automatic') {
+        $d = Read-RegValue "HKLM\SYSTEM\CurrentControlSet\Services\$Name" 'DelayedAutostart'
+        if ($d.Present -and $d.Value -eq 1) { $type = 'AutomaticDelayed' }
+    }
+    return @{ Present = $true; Value = $type }
 }
 function Read-TaskState([string]$Task) {
     $i = $Task.LastIndexOf('\')
-    $path = $Task.Substring(0, $i + 1); $name = $Task.Substring($i + 1)
+    $path = if ($i -lt 0) { '\' } else { $Task.Substring(0, $i + 1) }
+    $name = $Task.Substring($i + 1)
     try {
         $t = @(Get-ScheduledTask -TaskPath $path -ErrorAction Stop | Where-Object { $_.TaskName -eq $name })
     } catch {
         # an empty or missing task folder is reported as an error by the cmdlet, it just means no such task
-        if ($_.Exception.Message -match 'No MSFT_ScheduledTask objects found') { return @{ Present = $false } }
+        if ($_.CategoryInfo.Category -eq 'ObjectNotFound') { return @{ Present = $false } }
         return @{ Error = $_.Exception.Message }
     }
     if (-not $t.Count) { return @{ Present = $false } }
     return @{ Present = $true; Value = ([string]$t[0].State -ne 'Disabled') }
 }
+$features = $null
 function Read-FeatureState([string]$Name) {
-    try { $f = Get-WindowsOptionalFeature -Online -FeatureName $Name -ErrorAction Stop } catch { return @{ Error = $_.Exception.Message } }
-    if (-not $f) { return @{ Present = $false } }
-    return @{ Present = $true; Value = [string]$f.State }
+    # one dism session lists every feature; a session per feature takes seconds each
+    if ($null -eq $script:features) {
+        try {
+            $script:features = @{}
+            foreach ($f in Get-WindowsOptionalFeature -Online -ErrorAction Stop) { $script:features[$f.FeatureName] = [string]$f.State }
+        } catch { $script:features = $null; return @{ Error = $_.Exception.Message } }
+    }
+    if (-not $script:features.ContainsKey($Name)) { return @{ Present = $false } }
+    return @{ Present = $true; Value = $script:features[$Name] }
 }
 foreach ($r in $DetectReads) {
     $reading = switch ($r.Kind) {

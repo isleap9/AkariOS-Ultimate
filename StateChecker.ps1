@@ -4,7 +4,7 @@
 # A target is either .reg text, or a list of settings applied in order:
 #   @{ Path = 'HKLM:\...'; Name = 'value'; Value = 0 }  |  @{ Path; Name; Absent = $true }  |  @{ Path; KeyAbsent = $true } (key deleted)
 #   @{ Service = 'Name'; StartType = 'Disabled' }  |  @{ Task = '\Folder\Name'; Enabled = $false }  |  @{ Feature = 'Name'; State = 'Disabled' }
-#   (a service or task can also be @{ ...; Absent = $true })
+#   (a service or task can also be @{ ...; Absent = $true }; StartType is Automatic, AutomaticDelayed, Manual, Disabled, Boot or System)
 # A reading (keyed by Get-SettingKey) is:  @{ Present = $true; Value = ... }  |  @{ Present = $false }  |  @{ Error = 'reason' }
 
 # the closed set of Detect results (CONTEXT.md); 'Checking' is a display state, not a result
@@ -85,7 +85,7 @@ function Test-UnderKey([string]$KeyPath, [string]$Parent) {
 }
 
 # an optional feature waiting for a restart already has its change made; a removed payload is still disabled
-function Get-FeatureState([string]$State) {
+function ConvertTo-FeatureState([string]$State) {
     switch ($State) {
         'DisabledWithPayloadRemoved' { 'Disabled' }
         'DisablePending' { 'Disabled' }
@@ -107,7 +107,7 @@ function Get-EntryInfo($s) {
         return @{ Kind = 'Task'; Target = $s.Task; Key = 'task|' + $s.Task.ToLowerInvariant(); Label = "task $($s.Task)"; Value = [bool]$s.Enabled; Absent = $absent }
     }
     if ($s.Feature) {
-        return @{ Kind = 'Feature'; Target = $s.Feature; Key = 'feature|' + $s.Feature.ToLowerInvariant(); Label = "feature $($s.Feature)"; Value = (Get-FeatureState $s.State); Absent = $absent }
+        return @{ Kind = 'Feature'; Target = $s.Feature; Key = 'feature|' + $s.Feature.ToLowerInvariant(); Label = "feature $($s.Feature)"; Value = (ConvertTo-FeatureState $s.State); Absent = $absent }
     }
     return @{ Kind = 'Registry'; Key = (Get-SettingKey $s.Path $s.Name); KeyPath = (Get-KeyPath $s.Path); Path = $s.Path; Name = $s.Name
         Label = "$($s.Path)\$($s.Name)"; Value = $s.Value; Absent = $absent }
@@ -209,7 +209,7 @@ function Get-DetectResult($ApplyTarget, $RevertTarget, [hashtable]$Readings) {
     $applied = $true; $reverted = $true
     foreach ($c in $compare) {
         $r = $Readings[$c.Key]
-        if ($c.Kind -eq 'Feature' -and $r.Present) { $r = @{ Present = $true; Value = (Get-FeatureState $r.Value) } }
+        if ($c.Kind -eq 'Feature' -and $r.Present) { $r = @{ Present = $true; Value = (ConvertTo-FeatureState $r.Value) } }
         if ($c.Apply -and -not (Test-Expectation $c.Apply $r)) { $applied = $false }
         if ($c.Revert -and -not (Test-Expectation $c.Revert $r)) { $reverted = $false }
     }
