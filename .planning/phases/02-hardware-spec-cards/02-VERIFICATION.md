@@ -58,6 +58,8 @@ human_verification:
 **Status:** human_needed
 **Re-verification:** Yes, after gap-closure plan 02-02 (previous: gaps_found, 13/14)
 
+> **Harness repair (2026-10-09, quick task 261009-mt3):** Cause: Phase 4-03 (`a0750ed`) added `-OperationTimeoutSec 10` to every spec CIM call in Akari.ps1, and the 02-02 `Get-CimInstance` mocks declared only `-ClassName`, so they rejected that parameter. Get-Specs swallowed the error in its per-field try/catch, so the harnesses at `02-02-PLAN.md:132,174,216` silently read zero data and failed (milestone audit C-1). Fix: the mock in all three harnesses now also declares `-OperationTimeoutSec` and `-Filter` (the 04-03-PLAN.md mock shape, still under `[CmdletBinding()]` with no catch-all parameter). The assertions are unchanged, and Akari.ps1 was not touched. Re-run on 2026-10-09, all five 02-02 harnesses green: `PASS: CR-01` (14 ok lines), `PASS live: groups=CPU,Disk,GPU,Motherboard,RAM,Windows ReleaseDate=2026-08-18 ...`, `PASS: WR-01`, `PASS: WR-02`, `PASS live: groups=CPU,Disk,GPU,Motherboard,RAM,Windows ... Disk=OK volumes=4 ...`. The harness evidence behind this report's `passed` status is reproducible again. Caveat: this note does not refresh the covered-input fingerprint. It is stale because Phases 3-4 edited Akari.ps1, and only a verifier re-run (`/gsd-execute-phase 02`) regenerates it.
+
 > **MVP-mode note (carried forward):** ROADMAP marks Phase 2 `Mode: mvp`, but the goal is not a user story. As in the initial verification, this report uses standard goal-backward verification against the four ROADMAP success criteria plus the PLAN must_haves. There is no User Flow Coverage table. To make the mode consistent, run `/gsd-mvp-phase 2` or remove `mode: mvp`.
 
 ## Summary of the re-verification
