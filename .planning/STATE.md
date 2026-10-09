@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 04
-current_phase_name: Home Polish & Documentation
-status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-10-09T09:43:02.103Z"
+status: completed
+stopped_at: Phase 04 complete — all phases complete
+last_updated: "2026-10-09T12:33:33.584Z"
 last_activity: 2026-10-09
-last_activity_desc: Phase 04 execution started
-state_head: bbe8a376d9191612bfb3af7e494fbb8cf22be89b
+last_activity_desc: Phase 04 complete
+state_head: 05f8c46e124c0f4aeac04add6b3d50799ab6340e
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
   completed_plans: 8
+  percent: 100
 milestone_name: milestone
 ---
 
@@ -21,25 +21,25 @@ milestone_name: milestone
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-08)
+See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The Home page shows accurate, live system specs at a glance — if the specs are wrong or stale, the page fails its purpose.
-**Current focus:** Phase 04 — Home Polish & Documentation
+**Current focus:** All phases complete — v1.0 milestone ready to close
 
 ## Current Position
 
-Phase: 04 (Home Polish & Documentation) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
-Last activity: 2026-10-09 — Phase 04 execution started
+Phase: 04
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-10-09 — Phase 04 complete
 
-Progress: [████████░░] 75%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
+- Total plans completed: 7
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -49,6 +49,7 @@ Progress: [████████░░] 75%
 |-------|-------|-------|----------|
 | 02 | 2 | - | - |
 | 03 | 2 | - | - |
+| 04 | 3 | - | - |
 
 **Recent Trend:**
 
@@ -82,16 +83,18 @@ Recent decisions affecting current work:
 - [Phase 04]: Spec read watchdog: 20 s Deadline per read, abandoned via non-blocking BeginStop and disposed later from the tick; every spec CIM call bounded at -OperationTimeoutSec 10
 - [Phase 04]: WR-02 closed by deleting the Invoke-Code result-variable path; only the spec-completion block writes SpecData
 - [Phase 04]: CPU cores/threads summed across all Win32_Processor sockets; Sockets row shown only when above 1
+- [Phase 04]: Copy text and cards both render Get-HomeModel, so the clipboard can never drift from the screen; every model value is cast to [string] at build time
+- [Phase 04]: Health colour suppressed when a group's _Status is Failed, so a failed read never colours a value
 
 ### Pending Todos
 
-None yet.
+- [(2026-10-09) console-tweaks-in-app] Bring the "1 Check"–"8 Advanced" console-only tasks into the app as runnable tweaks (Akari.ps1, Tweaks/Refresh.ps1, Tweaks/Graphics.ps1, Tweaks/Advanced.ps1)
 
 ### Blockers/Concerns
 
-- ⚠️ [Phase 3] WR-01: the spec read has no CIM timeout or watchdog. A hung WMI provider leaves Home dimmed for the session (03-REVIEW-DISPOSITION.md: open)
-- ⚠️ [Phase 3] WR-02: the dormant Invoke-Code -ResultVar branch still writes the old shape into $script:SpecData (open)
-- ⚠️ [Phase 3] WR-03: the CPU card counts only the first socket on multi-socket machines (open)
+- ⚠️ [Phase 4] UI-REVIEW.md (19/24, advisory): the `CopySpecs` button has no fixed width, so its label swap reflows the header for ~2 s on every click — pin `MinWidth="104"` in UI/MainWindow.xaml
+- ⚠️ [Phase 4] UI-REVIEW.md (19/24, advisory): the two health values are dimmed to Opacity 0.6 during a refresh, dropping `Bad` to ≈2.7:1 and `Warn` to ≈3.7:1 contrast — tag health rows and exclude them from the dim
+- ⚠️ [Phase 4] UI-REVIEW.md (19/24, advisory): no feedback during the 20 s watchdog window — a hung WMI provider leaves Home silently faded until the deadline
 
 ## Deferred Items
 
@@ -101,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-10-09T09:43:02.053Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-10-09T12:33:33Z
+Stopped at: Phase 04 complete — all phases complete, v1.0 milestone ready to close
 Resume file: None

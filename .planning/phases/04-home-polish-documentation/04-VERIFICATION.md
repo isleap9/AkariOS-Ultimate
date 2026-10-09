@@ -1,7 +1,7 @@
 ---
 phase: 04-home-polish-documentation
 verified: 2026-10-09T09:56:41Z
-status: human_needed
+status: passed
 score: 41/44 must-haves verified
 covered_files:
   - .planning/phases/04-home-polish-documentation/04-01-PLAN.md
@@ -238,36 +238,43 @@ No prohibition declares a `verification:` tier, so all are treated as judgment-t
 ### Human Verification Required
 
 ### 1. Copy specs in the real app
+
 **Test:** Open the app. On Home, click "Copy specs" (right side, level with your computer's name), then paste into Notepad.
 **Expected:** The button says "Copied" for about 2 seconds, then "Copy specs". The paste shows your computer name, maker and model, a blank line, then CPU, GPU, RAM, Disk, Board and Windows lines matching the cards. No new message at the bottom. It still copies while the cards are faded after switching pages.
 **Why human:** Real click and paste.
 
 ### 2. Health colours
+
 **Test:** Look at the RAM and Disk cards. Push memory use above 80% (many tabs or apps), switch page and come back.
 **Expected:** Normally everything is white and nothing is green. RAM "Used" turns amber above 80% and red above 90%. Nothing else changes colour.
 **Why human:** Real colour under real load.
 
 ### 3. README read-through
+
 **Test:** Open README.md on GitHub.
 **Expected:** About one screen, no pictures, covers Akari, the Home page (Copy specs, colours), 8 categories, Optimize/Default and risk labels, the same install line, the zip route, and the same Credits line.
 **Why human:** Readability and fit.
 
 ### 4. Home never stays faded
+
 **Test:** Switch between Home and other pages a few times.
 **Expected:** The cards fade briefly, then show fresh values within a couple of seconds. They never stay faded and no new message appears.
 **Why human:** Live behaviour in the running app.
 
 ### 5. CPU card and tweak runs
+
 **Test:** Look at the CPU card, then run a couple of tweaks from other pages.
 **Expected:** The CPU card is the same as before with no "Sockets" line. Each tweak still shows its messages and a "Done" line, and the buttons work as before.
 **Why human:** Real tweak runs through the tick (behavior-unverified truth 44).
 
 ### 6. (Optional) Clipboard busy
+
 **Test:** With another program holding the clipboard, click Copy specs.
 **Expected:** The button shows "Copy failed" for about 2 seconds and the app keeps working.
 **Why human:** Error path that no harness exercises (truth 18). Hard to set up. An override is reasonable.
 
 ### 7. Prohibition sign-off
+
 **Test:** Review the Prohibitions table above.
 **Expected:** You agree with the four flagged judgment verdicts.
 **Why human:** Prohibitions without an enforcing test are never passed silently.

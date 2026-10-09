@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Spec Query Engine** - Background CIM/registry queries for CPU, RAM, and Windows specs with per-field fallback
 - [x] **Phase 2: Hardware Spec Cards** - GPU, disk, and motherboard/BIOS queries with hardware-diversity handling (completed 2026-10-08)
 - [x] **Phase 3: Home Shell & Live Refresh** - Default landing tab, card grid layout, hostname header, and refresh-on-show (completed 2026-10-08)
-- [ ] **Phase 4: Home Polish & Documentation** - Copy-to-clipboard, health indicators, and README
+- [x] **Phase 4: Home Polish & Documentation** - Copy-to-clipboard, health indicators, and README (completed 2026-10-09)
 
 ## Phase Details
 
@@ -81,7 +81,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User sees health-at-a-glance indicators (disk-free % / RAM pressure threshold coloring)
   3. README documents the AkariOS-Ultimate project including the Home page feature
 
-**Plans**: 3/3 plans executed
+**Plans**: 3/3 plans complete
 **Wave 1**
 - [x] 04-01-PLAN.md — Copy specs button (shared card model, clipboard, Copied feedback) and Disk/RAM health colours
 - [x] 04-02-PLAN.md — README rewrite (project, Home page, categories, apply/revert, install, safety; Credits verbatim)
@@ -101,4 +101,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Spec Query Engine | 1/1 | Complete | 2026-10-08 |
 | 2. Hardware Spec Cards | 2/2 | Complete    | 2026-10-08 |
 | 3. Home Shell & Live Refresh | 2/2 | Complete    | 2026-10-08 |
-| 4. Home Polish & Documentation | 3/3 | In Progress | - |
+| 4. Home Polish & Documentation | 3/3 | Complete    | 2026-10-09 |

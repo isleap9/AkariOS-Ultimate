@@ -29,7 +29,7 @@
 
 ### Documentation
 
-- [ ] **DOC-01**: README is revamped to document the AkariOS-Ultimate project including the new Home page feature
+- [x] **DOC-01**: README is revamped to document the AkariOS-Ultimate project including the new Home page feature
 
 ## v2 Requirements
 
@@ -75,7 +75,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SHELL-03 | Phase 3 | Complete |
 | REFR-01 | Phase 3 | Complete |
 | REFR-02 | Phase 1 | Complete |
-| DOC-01 | Phase 4 | Pending |
+| DOC-01 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 14 total
