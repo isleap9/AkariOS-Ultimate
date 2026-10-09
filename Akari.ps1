@@ -84,6 +84,31 @@ function Write-Host {
 function Clear-Host { }
 function show-menu { }
 function Pause { }
+function Read-Host {
+    param([string]$Prompt = '')
+    if ($Prompt) { Write-Log $Prompt }
+    Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction SilentlyContinue
+    $result = [Microsoft.VisualBasic.Interaction]::InputBox($Prompt, 'AkariOS-Ultimate')
+    Write-Log "> $result"
+    if ($result -eq '') { return $null }
+    return $result
+}
+function Get-FilePath {
+    param([string]$Filter = 'All Files (*.*)|*.*')
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+    $dlg = New-Object System.Windows.Forms.OpenFileDialog
+    $dlg.Filter = $Filter
+    $result = $dlg.ShowDialog()
+    if ($result -eq [System.Windows.Forms.DialogResult]::OK) { return $dlg.FileName }
+    return $null
+}
+function Get-FolderPath {
+    param([string]$Description = 'Select a folder')
+    $shell = New-Object -ComObject Shell.Application
+    $folder = $shell.BrowseForFolder(0, $Description, 0x00000040)
+    if ($folder) { return $folder.Self.Path }
+    return $null
+}
 function Set-Reg($Path, $Name, $Value, $Type = 'DWord') {
     if (-not (Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
     New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType $Type -Force | Out-Null
@@ -945,11 +970,7 @@ $Rows.AddHandler([Windows.Controls.Primitives.ButtonBase]::ClickEvent, [Windows.
         'Revert' { if ($t.Revert) { Invoke-Code $t.Revert.ToString() "$($t.Name): default" $meta } }
         'Check'  { if ($t.Check)  { Invoke-Code $t.Check.ToString() "$($t.Name): check" } }
         'Run'    {
-            if ($t.Kind -eq 'Console') {
-                $path = Join-Path $Root $t.Script
-                Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$path`""
-                Add-Log "$($t.Name): opened in its own console window"
-            } elseif ($t.Apply -and (Confirm-Run $t.Confirm)) { Invoke-Code $t.Apply.ToString() "$($t.Name): $($t.Button.ToLower())" }
+            if ($t.Apply -and (Confirm-Run $t.Confirm)) { Invoke-Code $t.Apply.ToString() "$($t.Name): $($t.Button.ToLower())" }
         }
         'Sub'    { $a = $t.Actions[[int]$arg]; if (Confirm-Run $a.Confirm) { Invoke-Code $a.Block.ToString() "$($t.Name): $($a.Name)" } }
         'Expand' {

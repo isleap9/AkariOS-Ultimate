@@ -931,14 +931,195 @@ cmd /c C:\Windows\System32\shutdown.exe /r /fw /t 0
         }}
     )
 
-Add-Tweak -Id 'smt-ht' -Category 'Advanced' -Kind Console -Button 'Open console' -Name 'SMT / Hyper-Threading' -Risk Caution -Script '8 Advanced\8 Smt Ht.ps1' `
-    -Description 'Temporarily turn CPU threads off for testing per app (asks for the game)'
+Add-Tweak -Id 'smt-ht' -Category 'Advanced' -Kind Group -Name 'SMT / Hyper-Threading' -Risk Caution `
+    -Description 'Temporarily turn CPU threads off for testing per app/game' `
+    -Actions @(
+        @{ Name = 'Already running'; Description = 'Set affinity on an already-running process'; Button = 'Apply'; Block = {
+Write-Host "SMT/HT: Already running - setting affinity..."
+# get number of logical processors
+$NOLP = (Get-WmiObject Win32_ComputerSystem).NumberOfLogicalProcessors
+$NOLP = [int]$NOLP
+# convert input to binary value with smt/ht off
+$binary = ""
+for ($i = 0; $i -lt $NOLP; $i++) {
+if ($i % 2 -eq 0) { $binary += "0" } else { $binary += "1" }
+}
+$binary = $binary.PadLeft([math]::Ceiling($binary.Length / 4) * 4, "0")
+$hexadecimal = ""
+for ($i = 0; $i -lt $binary.Length; $i += 4) {
+$binchunk = $binary.Substring($i, 4)
+$hexadecimal += [Convert]::ToString([Convert]::ToInt32($binchunk, 2), 16)
+}
+$hexadecimal = [Convert]::ToInt32($hexadecimal, 16)
+# show running processes
+(Get-Process | Where-Object {$_.WorkingSet64 -gt 500MB} | Select-Object Name, Id) | Format-Table -AutoSize
+$exeid = Read-Host "Enter game EXE ID"
+if (-not $exeid) { Write-Log 'Cancelled'; return }
+# set game exe smt/ht off
+$smthtoff = Get-Process -Id $exeid
+$smthtoff.ProcessorAffinity = $hexadecimal
+# check new value
+$reloadexeid = Get-Process -Id $exeid
+$showvalue = [Convert]::ToString([int]$reloadExeid.ProcessorAffinity, 2).PadLeft($NOLP, '0')
+Write-Host "ID - $exeid = $showvalue"
+        }},
+        @{ Name = 'Startup'; Description = 'Start a game launcher with SMT/HT disabled'; Button = 'Apply'; Block = {
+Write-Host "SMT/HT: Startup - launching with affinity..."
+# stop game launchers running
+$stop = "Battle.net", "BsgLauncher", "EADesktop", "EpicGamesLauncher", "GalaxyClient", "RobloxPlayerBeta", "RiotClientServices", "Launcher", "steam", "upc"
+$stop | ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
+# get number of logical processors
+$NOLP = (Get-WmiObject Win32_ComputerSystem).NumberOfLogicalProcessors
+$NOLP = [int]$NOLP
+# convert input to binary value with smt/ht off
+$binary = ""
+for ($i = 0; $i -lt $NOLP; $i++) {
+if ($i % 2 -eq 0) { $binary += "0" } else { $binary += "1" }
+}
+$binary = $binary.PadLeft([math]::Ceiling($binary.Length / 4) * 4, "0")
+$hexadecimal = ""
+for ($i = 0; $i -lt $binary.Length; $i += 4) {
+$binchunk = $binary.Substring($i, 4)
+$hexadecimal += [Convert]::ToString([Convert]::ToInt32($binchunk, 2), 16)
+}
+# select game launcher lnk or exe
+$gamelauncher = Get-FilePath "Game Launcher (*.exe;*.lnk)|*.exe;*.lnk|All Files (*.*)|*.*"
+if (-not $gamelauncher) { Write-Log 'Cancelled'; return }
+# start game launcher lnk or exe with smt/ht off
+cmd /c "start `"`" /affinity $hexadecimal `"$gamelauncher`""
+Write-Host "GETTING VALUE..."
+Start-Sleep -Seconds 10
+$gamelauncher = [System.IO.Path]::GetFileNameWithoutExtension($gamelauncher)
+$reloadgamelauncher = (Get-Process -Name "$gamelauncher").ProcessorAffinity
+$showvalue = [Convert]::ToString([int]$reloadgamelauncher, 2)
+$NOLPlength = $NOLP
+$showvalue = $showvalue.PadLeft($NOLPlength, "0")
+Write-Host "EXE - $gamelauncher = $showvalue"
+        }}
+    )
 
-Add-Tweak -Id 'core1-thread1' -Category 'Advanced' -Kind Console -Button 'Open console' -Name 'Core 1 thread 1' -Risk Caution -Script '8 Advanced\9 Core 1 Thread 1.ps1' `
-    -Description 'Temporarily turn CPU core 1 and thread 1 off for testing per app (asks for the game)'
+Add-Tweak -Id 'core1-thread1' -Category 'Advanced' -Kind Group -Name 'Core 1 thread 1' -Risk Caution `
+    -Description 'Temporarily turn CPU core 1 and thread 1 off for testing per app/game' `
+    -Actions @(
+        @{ Name = 'Already running'; Description = 'Set affinity on an already-running process (excludes core 1 + thread 1)'; Button = 'Apply'; Block = {
+Write-Host "Core 1 Thread 1: Already running - setting affinity..."
+# get number of logical processors
+$NOLP = (Get-WmiObject Win32_ComputerSystem).NumberOfLogicalProcessors
+$NOLP = [int]$NOLP
+# set affinity mask with core 1 and thread 1 disabled (exclude bit 0 and bit 1)
+$hexadecimal = [int]([math]::Pow(2, $NOLP) - 1) - 3
+# show running processes
+(Get-Process | Where-Object {$_.WorkingSet64 -gt 500MB} | Select-Object Name, Id) | Format-Table -AutoSize
+$exeid = Read-Host "Enter game EXE ID"
+if (-not $exeid) { Write-Log 'Cancelled'; return }
+# set game exe core1/thread1 off
+$smthtoff = Get-Process -Id $exeid
+$smthtoff.ProcessorAffinity = $hexadecimal
+# check new value
+$reloadexeid = Get-Process -Id $exeid
+$showvalue = [Convert]::ToString([int]$reloadexeid.ProcessorAffinity, 2).PadLeft($NOLP, '0')
+Write-Host "ID - $exeid = $showvalue"
+        }},
+        @{ Name = 'Startup'; Description = 'Start a game launcher with core 1 and thread 1 disabled'; Button = 'Apply'; Block = {
+Write-Host "Core 1 Thread 1: Startup - launching with affinity..."
+# stop game launchers running
+$stop = "Battle.net", "BsgLauncher", "EADesktop", "EpicGamesLauncher", "GalaxyClient", "RobloxPlayerBeta", "RiotClientServices", "Launcher", "steam", "upc"
+$stop | ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
+# get number of logical processors
+$NOLP = (Get-WmiObject Win32_ComputerSystem).NumberOfLogicalProcessors
+$NOLP = [int]$NOLP
+# set affinity mask with core 1 and thread 1 disabled (exclude bit 0 and bit 1)
+$affinity = [int]([math]::Pow(2, $NOLP) - 1) - 3
+$hexadecimal = "{0:X}" -f $affinity
+# select game launcher lnk or exe
+$gamelauncher = Get-FilePath "Game Launcher (*.exe;*.lnk)|*.exe;*.lnk|All Files (*.*)|*.*"
+if (-not $gamelauncher) { Write-Log 'Cancelled'; return }
+# start game launcher lnk or exe with core1/thread1 off
+cmd /c "start `"`" /affinity $hexadecimal `"$gamelauncher`""
+Write-Host "GETTING VALUE..."
+Start-Sleep -Seconds 10
+$gamelauncher = [System.IO.Path]::GetFileNameWithoutExtension($gamelauncher)
+$reloadgamelauncher = (Get-Process -Name "$gamelauncher").ProcessorAffinity
+$showvalue = [Convert]::ToString([int]$reloadgamelauncher, 2)
+$showvalue = $showvalue.PadLeft($NOLP, "0")
+Write-Host "EXE - $gamelauncher = $showvalue"
+        }}
+    )
 
-Add-Tweak -Id 'priority' -Category 'Advanced' -Kind Console -Button 'Open console' -Name 'Process priority' -Risk Caution -Script '8 Advanced\10 Priority.ps1' `
-    -Description 'Temporarily change a game priority for testing (asks for the game)'
+Add-Tweak -Id 'priority' -Category 'Advanced' -Kind Group -Name 'Process priority' -Risk Caution `
+    -Description 'Temporarily change a game priority for testing per app/game' `
+    -Actions @(
+        @{ Name = 'Already running'; Description = 'Set priority on an already-running process'; Button = 'Apply'; Block = {
+Write-Host "Priority: Already running - setting priority..."
+# show priority options
+Write-Host "1. Real Time"
+Write-Host "2. High"
+Write-Host "3. Above Normal"
+Write-Host "4. Normal"
+Write-Host "5. Below Normal"
+Write-Host "6. Idle"
+# select priority
+$priochoice = Read-Host "Priority (1-6)"
+# map choice to priority
+switch ($priochoice) {
+"1" {$prio = "RealTime"}
+"2" {$prio = "High"}
+"3" {$prio = "AboveNormal"}
+"4" {$prio = "Normal"}
+"5" {$prio = "BelowNormal"}
+"6" {$prio = "Idle"}
+default { Write-Host "Invalid input..."; return }
+}
+# show running processes
+(Get-Process | Where-Object {$_.WorkingSet64 -gt 500MB} | Select-Object Name, Id) | Format-Table -AutoSize
+$exeid = Read-Host "Enter game EXE ID"
+if (-not $exeid) { Write-Log 'Cancelled'; return }
+# set game exe priority
+$processid = Get-Process -Id $exeid -ErrorAction SilentlyContinue
+$processid.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::$prio
+Write-Host "GETTING VALUE..."
+Start-Sleep -Seconds 3
+# show new value
+$currentprio = $processid.PriorityClass
+Write-Host "ID - $exeid = $currentprio"
+        }},
+        @{ Name = 'Startup'; Description = 'Start a game launcher with a custom priority'; Button = 'Apply'; Block = {
+Write-Host "Priority: Startup - launching with custom priority..."
+# stop game launchers running
+$stop = "Battle.net", "BsgLauncher", "EADesktop", "EpicGamesLauncher", "GalaxyClient", "RobloxPlayerBeta", "RiotClientServices", "Launcher", "steam", "upc"
+$stop | ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
+# show priority options
+Write-Host "1. Real Time"
+Write-Host "2. High"
+Write-Host "3. Above Normal"
+Write-Host "4. Normal"
+Write-Host "5. Below Normal"
+Write-Host "6. Idle"
+# select priority
+$priochoice = Read-Host "Priority (1-6)"
+# map choice to priority
+switch ($priochoice) {
+"1" {$prio = "RealTime"}
+"2" {$prio = "High"}
+"3" {$prio = "AboveNormal"}
+"4" {$prio = "Normal"}
+"5" {$prio = "BelowNormal"}
+"6" {$prio = "Idle"}
+default { Write-Host "Invalid input..."; return }
+}
+# select game launcher lnk or exe
+$gamelauncher = Get-FilePath "Game Launcher (*.exe;*.lnk)|*.exe;*.lnk|All Files (*.*)|*.*"
+if (-not $gamelauncher) { Write-Log 'Cancelled'; return }
+# set game exe priority
+cmd /c "start `"`" /$prio `"$gamelauncher`""
+$gamelauncher = [System.IO.Path]::GetFileNameWithoutExtension($gamelauncher)
+# check value
+$reloadgamelauncher = (Get-Process -Name "$gamelauncher").PriorityClass
+Write-Host "GETTING VALUE..."
+Start-Sleep -Seconds 3
+Write-Host "EXE - $gamelauncher = $reloadgamelauncher"
+        }}
+    )
 
 Add-Tweak -Id 'mpo' -Category 'Advanced' -Name 'Multiplane overlay' -Risk Caution `
     -Description 'Turn MPO off (Default is on)' `
