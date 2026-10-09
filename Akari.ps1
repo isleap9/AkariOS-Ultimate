@@ -150,15 +150,22 @@ function Get-Specs {
     $cpuCores = "Not available"
     $cpuThreads = "Not available"
     $cpuSpeedMHz = "Not available"
+    # socket count is descriptive and not counted in the status
+    $cpuSockets = "Not available"
     $cpuFields = 4
     $cpuSuccess = 0
     try {
-        $cpu = Get-CimInstance -ClassName Win32_Processor -OperationTimeoutSec 10 -ErrorAction Stop | Select-Object -First 1
-        if ($cpu) {
+        # every socket: cores and threads are summed, model and clock come from the first
+        $cpus = @(Get-CimInstance -ClassName Win32_Processor -OperationTimeoutSec 10 -ErrorAction Stop)
+        if ($cpus.Count -gt 0) {
+            $cpu = $cpus[0]
+            $sumCores = [int](($cpus | Measure-Object -Property NumberOfCores -Sum).Sum)
+            $sumThreads = [int](($cpus | Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum)
+            $cpuSockets = $cpus.Count
             if ($cpu.Name) { $cpuModel = $cpu.Name.Trim(); $cpuSuccess++ }
-            if ($cpu.NumberOfCores -gt 0) { $cpuCores = $cpu.NumberOfCores; $cpuSuccess++ }
-            elseif ($cpu.NumberOfLogicalProcessors -gt 0) { $cpuCores = $cpu.NumberOfLogicalProcessors; $cpuSuccess++ }
-            if ($cpu.NumberOfLogicalProcessors -gt 0) { $cpuThreads = $cpu.NumberOfLogicalProcessors; $cpuSuccess++ }
+            if ($sumCores -gt 0) { $cpuCores = $sumCores; $cpuSuccess++ }
+            elseif ($sumThreads -gt 0) { $cpuCores = $sumThreads; $cpuSuccess++ }
+            if ($sumThreads -gt 0) { $cpuThreads = $sumThreads; $cpuSuccess++ }
             if ($cpu.MaxClockSpeed -gt 0) { $cpuSpeedMHz = $cpu.MaxClockSpeed; $cpuSuccess++ }
         }
     } catch { }
@@ -166,6 +173,7 @@ function Get-Specs {
     $result.CPU.Cores = $cpuCores
     $result.CPU.Threads = $cpuThreads
     $result.CPU.SpeedMHz = $cpuSpeedMHz
+    $result.CPU.Sockets = $cpuSockets
     if ($cpuSuccess -eq 0) { $result.CPU._Status = 'Failed' }
     elseif ($cpuSuccess -lt $cpuFields) { $result.CPU._Status = 'Partial' }
 
@@ -509,7 +517,7 @@ function Show-Page {
 # ---- running actions in a background runspace
 function Set-Busy([bool]$b) { $script:Busy = $b; $Page.IsEnabled = -not $b }
 
-function Invoke-Code([string]$code, [string]$label, $meta = $null, [string]$ResultVar = $null) {
+function Invoke-Code([string]$code, [string]$label, $meta = $null) {
     if ($script:Busy) { return }
     Set-Busy $true
     Add-Log $label
@@ -518,19 +526,9 @@ function Invoke-Code([string]$code, [string]$label, $meta = $null, [string]$Resu
     $rs.SessionStateProxy.SetVariable('LogQueue', $script:Queue)
     $ps = [powershell]::Create()
     $ps.Runspace = $rs
-    if ($ResultVar) {
-        $resultCollection = [System.Management.Automation.PSDataCollection[object]]::new()
-        $wrapped = $Helpers + "`ntry {`n`$__result = & {`n" + $code + "`n}`n`$__result`n} catch { Write-Log ('Error: ' + `$_.Exception.Message); `$__result = `$null }"
-        [void]$ps.AddScript($wrapped)
-        # ps 5.1 cannot bind the generic BeginInvoke overload with $null input, pass an empty completed collection
-        $inputCollection = [System.Management.Automation.PSDataCollection[object]]::new()
-        $inputCollection.Complete()
-        $script:Job = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke($inputCollection, $resultCollection); Label = $label; Meta = $meta; ResultVar = $ResultVar; ResultCollection = $resultCollection }
-    } else {
-        $wrapped = $Helpers + "`ntry {`n& {`n" + $code + "`n} *>&1 | Out-String -Stream | ForEach-Object { if (`$_.Trim()) { Write-Log `$_ } }`n} catch { Write-Log ('Error: ' + `$_.Exception.Message) }"
-        [void]$ps.AddScript($wrapped)
-        $script:Job = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke(); Label = $label; Meta = $meta }
-    }
+    $wrapped = $Helpers + "`ntry {`n& {`n" + $code + "`n} *>&1 | Out-String -Stream | ForEach-Object { if (`$_.Trim()) { Write-Log `$_ } }`n} catch { Write-Log ('Error: ' + `$_.Exception.Message) }"
+    [void]$ps.AddScript($wrapped)
+    $script:Job = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke(); Label = $label; Meta = $meta }
 }
 
 # ---- home page (spec cards)
@@ -618,7 +616,7 @@ function Add-Divider($card) {
 function New-FailedSpecs {
     $na = 'Not available'
     return @{
-        CPU = @{ _Status = 'Failed'; Model = $na; Cores = $na; Threads = $na; SpeedMHz = $na }
+        CPU = @{ _Status = 'Failed'; Model = $na; Cores = $na; Threads = $na; SpeedMHz = $na; Sockets = $na }
         RAM = @{ _Status = 'Failed'; TotalGB = $na; UsedGB = $na; FreeGB = $na }
         Windows = @{ _Status = 'Failed'; Edition = $na; Version = $na; Build = $na }
         GPU = @{ _Status = 'Failed'; Adapters = @() }
@@ -662,6 +660,8 @@ function Get-HomeModel {
     $rl = @()
     $rl += @{ Label = 'Cores'; Value = [string]$cores }
     $rl += @{ Label = 'Speed'; Value = [string](Fmt-Num $cpu.SpeedMHz '0.00' 'GHz' 1000) }
+    # multi-socket machines: show how many cpus the totals cover
+    if ($null -ne $cpu.Sockets -and $cpu.Sockets -isnot [string] -and $cpu.Sockets -gt 1) { $rl += @{ Label = 'Sockets'; Value = "$($cpu.Sockets)" } }
     $model.Add(@{ Title = 'CPU'; Blocks = @(@{ Head = $head; Rows = $rl }); Inline = $false })
 
     # gpu card: one block per adapter, in read order
@@ -910,14 +910,7 @@ $timer.Add_Tick({
     }
     $j = $script:Job
     if ($j -and $j.Handle.IsCompleted) {
-        try {
-            if ($j.ResultVar) {
-                [void]$j.Ps.EndInvoke($j.Handle)
-                # output lands in the caller-supplied collection, endinvoke returns nothing
-                $result = $j.ResultCollection
-                if ($result -and $result.Count -gt 0) { $script:SpecData = $result[$result.Count - 1] } else { $script:SpecData = $null }
-            } else { [void]$j.Ps.EndInvoke($j.Handle) }
-        } catch { Add-Log "Error: $($_.Exception.Message)" }
+        try { [void]$j.Ps.EndInvoke($j.Handle) } catch { Add-Log "Error: $($_.Exception.Message)" }
         foreach ($err in $j.Ps.Streams.Error) { Add-Log "Error: $($err.ToString())" }
         while ($script:Queue.TryDequeue([ref]$m)) { Add-Log $m }
         $j.Ps.Dispose(); $j.Rs.Dispose()
