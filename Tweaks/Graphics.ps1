@@ -1,4 +1,4 @@
-﻿# Graphics category. GENERATED from the AkariOS-Ultimate '5 Graphics' scripts.
+﻿# Graphics category.
 
 Add-Tweak -Id 'driver-clean' -Category 'Graphics' -Kind Group -Name 'Driver clean (DDU)' -Risk Advanced `
     -Description 'Remove the current graphics driver with DDU' `

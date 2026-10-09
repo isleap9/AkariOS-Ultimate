@@ -1,4 +1,4 @@
-﻿# Check category. GENERATED from the AkariOS-Ultimate '1 Check' scripts.
+﻿# Check category.
 
 Add-Tweak -Id 'bios-check' -Category 'Check' -Kind Action -Button 'Open' -Name 'BIOS check' -Risk Safe `
     -Description 'Search your motherboard model online to check for BIOS updates' `

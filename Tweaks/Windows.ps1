@@ -1,4 +1,4 @@
-﻿# Windows category. GENERATED from the AkariOS-Ultimate '6 Windows' scripts (Optimize = menu option 1, Default = option 2).
+﻿# Windows category.
 # Apply/Revert run in a background runspace. Write-Host is routed to the log. Detect (optional) runs in the UI.
 
 Add-Tweak -Id 'start-taskbar' -Category 'Windows' -Name 'Start menu taskbar' -Risk Safe `

@@ -1,4 +1,4 @@
-﻿# Installers category. GENERATED from the AkariOS-Ultimate '4 Installers' scripts.
+﻿# Installers category.
 
 Add-Tweak -Id 'install-7-zip' -Category 'Installers' -Kind Action -Button 'Install' -Name '7-Zip' -Risk Safe `
     -Description 'Download and install 7-Zip' `

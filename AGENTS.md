@@ -38,7 +38,7 @@ This work adds a **Home page** — the new default landing tab — that reads th
 - `System.Windows.Forms` + `System.Drawing` - Folder/file dialogs and wallpaper image manipulation in tweak scripts (e.g. `Tweaks/Windows.ps1:718,721`)
 - .NET Runspaces (`[runspacefactory]::CreateRunspace()` in `Akari.ps1:227`) - Background execution of tweak `Apply`/`Revert`/`Check` scriptblocks so the UI stays responsive
 - `Windows.Threading.DispatcherTimer` (150 ms tick, `Akari.ps1:237`) - Drains the log queue and completes background jobs on the UI thread
-- None. No test runner, assertion library, or `*.test.*` / `*.spec.*` / `Pester` files detected
+- Pester 3.4 (ships with Windows 10/11; dev tooling only, never loaded by the app) - Tests in `Tests/*.Tests.ps1`, run by `Tests/Run.ps1` (see Testing below)
 - None. No build tool, bundler, linter config (`.eslintrc`, `.prettierrc`, `PSScriptAnalyzerSettings.psd1`), or formatter. Files run directly from source: `powershell -ExecutionPolicy Bypass -File Akari.ps1`
 
 ## Key Dependencies
@@ -132,6 +132,7 @@ This work adds a **Home page** — the new default landing tab — that reads th
 | Component | Responsibility | File |
 |-----------|----------------|------|
 | Main shell / host | Elevation + STA relaunch, tweak registry (`Add-Tweak`), XAML row generation, page/search rendering, background-runspace execution, log pump, state persistence, two built-in registry tuners | `Akari.ps1` |
+| State checker | Detect rules: declared targets + machine readings -> Detect result. Pure logic, no UI, no side effects; dot-sourced by the host and by tests | `StateChecker.ps1` |
 | View definition | Single-window layout: sidebar `Nav`, `Search`, `Heading`, `Tuner` + `SvcTuner` panels, `Rows` container, `Log` drawer; `Ink` dark-theme resource tokens | `UI/MainWindow.xaml` |
 | Tweak catalog (data) | Eight category files that call `Add-Tweak` to register every tweak; bodies are the actual payload scripts | `Tweaks/Check.ps1`, `Tweaks/Refresh.ps1`, `Tweaks/Setup.ps1`, `Tweaks/Installers.ps1`, `Tweaks/Graphics.ps1`, `Tweaks/Windows.ps1`, `Tweaks/Hardware.ps1`, `Tweaks/Advanced.ps1` |
 | Remote bootstrapper | Self-elevates, downloads the `main.zip` from GitHub, extracts to `C:\AkariOS-Ultimate`, relaxes execution policy, unblocks files, launches `Akari.ps1` hidden | `IWR.ps1` |
@@ -226,6 +227,20 @@ This work adds a **Home page** — the new default landing tab — that reads th
 - Runspace guard: `Invoke-Code` wraps bodies in `try/catch` that `Write-Log ('Error: ' + ...)`; completion handler also drains `$ps.Streams.Error` (`Akari.ps1:232, 243-245`).
 - UI-thread guard: `Dispatcher.UnhandledException` marks handled, logs to drawer + file, resets `$script:Busy` (`Akari.ps1:382-388`).
 - Defensive reads: `Get-State` swallows `Detect` exceptions (`Akari.ps1:177`); registry reads use `-ErrorAction SilentlyContinue` throughout tweak bodies; `Confirm-Run` gates destructive actions.
+
+## Testing
+
+Run every test with one command from the repo root (Windows PowerShell 5.1, built-in Pester 3.4, nothing to install):
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File Tests\Run.ps1
+```
+
+It prints pass/fail per test and exits with the number of failed tests (0 = all passed).
+
+- Tests cover `StateChecker.ps1` only, through its public functions: fake targets/readings in, Detect result out. They never read or write the real registry, services or UI.
+- Use Pester 3 syntax (`Describe`/`It`/`Should Be`); `Tests\Run.ps1` loads the newest Pester 3.x/4.x and fails if only Pester 5 is installed.
+- New test files go in `Tests\` named `<Thing>.Tests.ps1` and dot-source what they test from `$PSScriptRoot\..`.
 
 ## Cross-Cutting Concerns
 

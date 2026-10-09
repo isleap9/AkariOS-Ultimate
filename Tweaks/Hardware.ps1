@@ -1,4 +1,4 @@
-﻿# Hardware category. GENERATED from the AkariOS-Ultimate '7 Hardware' scripts.
+﻿# Hardware category.
 
 Add-Tweak -Id 'scaling-no-accel' -Category 'Hardware' -Kind Group -Name 'Higher scaling with no mouse acceleration' -Risk Safe `
     -Description 'Pick a display scale with the matching mouse settings' `

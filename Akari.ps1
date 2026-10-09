@@ -54,12 +54,14 @@ function Add-Tweak {
             Risk = $Risk; Kind = $Kind; Button = $Button; Actions = $Actions; Confirm = $Confirm; Script = $Script
             Apply = $Apply; Revert = $Revert; Detect = $Detect; Check = $Check })
 }
-foreach ($need in 'UI\MainWindow.xaml', 'Tweaks') {
+foreach ($need in 'UI\MainWindow.xaml', 'Tweaks', 'StateChecker.ps1') {
     if (-not (Test-Path "$Root\$need")) {
-        [void][Windows.MessageBox]::Show("Missing: $Root\$need`n`nAkari.ps1 needs UI, Tweaks and Assets folders next to it.", 'Akari')
+        [void][Windows.MessageBox]::Show("Missing: $Root\$need`n`nAkari.ps1 needs StateChecker.ps1 and the UI, Tweaks and Assets folders next to it.", 'Akari')
         exit
     }
 }
+# load detect rules (pure logic, no UI)
+. "$Root\StateChecker.ps1"
 foreach ($f in Get-ChildItem "$Root\Tweaks" -Filter *.ps1 | Sort-Object Name) { . $f.FullName }
 
 # ---- remembers what Akari last applied (used for the state dot when a tweak has no Detect)

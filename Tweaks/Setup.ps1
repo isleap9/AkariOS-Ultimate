@@ -1,4 +1,4 @@
-﻿# Setup category. GENERATED from the AkariOS-Ultimate '3 Setup' scripts.
+﻿# Setup category.
 
 Add-Tweak -Id 'bitlocker' -Category 'Setup' -Name 'BitLocker' -Risk Caution `
     -Description 'Turn BitLocker off (Default turns it on)' `

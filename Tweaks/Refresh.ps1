@@ -1,4 +1,4 @@
-﻿# Refresh category. GENERATED from the AkariOS-Ultimate '2 Refresh' scripts.
+﻿# Refresh category.
 
 Add-Tweak -Id 'factory-reset' -Category 'Refresh' -Kind Action -Button 'Open' -Name 'Factory reset' -Risk Safe `
     -Description 'Open the Windows recovery settings' `

@@ -1,4 +1,4 @@
-﻿# Advanced category. GENERATED from the AkariOS-Ultimate '8 Advanced' scripts.
+﻿# Advanced category.
 
 Add-Tweak -Id 'adv-defender' -Category 'Advanced' -Name 'Defender' -Risk Advanced `
     -Description 'Turn Windows Defender off' `
