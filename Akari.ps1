@@ -124,8 +124,8 @@ function Set-Reg($Path, $Name, $Value, $Type = 'DWord') {
 }
 function Remove-Reg($Path, $Name) { Remove-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue }
 # import a tweak's .reg target ($ApplyTarget / $RevertTarget): the same text Detect reads
-function Import-Reg([string]$Text, [string]$Name) {
-    $file = "$env:SystemRoot\Temp\$Name.reg"
+function Import-Reg([string]$Text, [string]$FileName) {
+    $file = "$env:SystemRoot\Temp\$FileName.reg"
     Set-Content -Path $file -Value $Text -Force
     Start-Process -Wait "regedit.exe" -ArgumentList "/S `"$file`"" -WindowStyle Hidden
 }

@@ -70,6 +70,16 @@ Describe '.reg text targets: value types' {
         Get-RegResult $a (New-RegText '"M"=-') @{ $k = (New-Reading ([string[]]('a', 'b'))) } | Should Be 'Applied'
     }
 
+    It 'reads an empty multi-string as no strings' {
+        $k = Get-SettingKey $RK 'M'
+        Get-RegResult (New-RegText '"M"=hex(7):00,00') (New-RegText '"M"=-') @{ $k = (New-Reading ([string[]]@())) } | Should Be 'Applied'
+    }
+
+    It 'unescapes only backslash and quote, as regedit does' {
+        $k = Get-SettingKey $RK 'S'
+        Get-RegResult (New-RegText '"S"="a\nb"') (New-RegText '"S"=-') @{ $k = (New-Reading 'a\nb') } | Should Be 'Applied'
+    }
+
     It 'reads empty strings' {
         $k = Get-SettingKey $RK 'URL Protocol'
         Get-RegResult (New-RegText '"URL Protocol"=""') (New-RegText '"URL Protocol"=-') @{ $k = (New-Reading '') } | Should Be 'Applied'
@@ -109,6 +119,11 @@ Describe '.reg text targets: deletions' {
         Get-RegResult $a $r @{ (Get-SettingKey $RK 'N') = $Gone } | Should Be 'Not applied'
     }
 
+    It 'ignores value lines under a deleted key, as regedit does' {
+        $r = "Windows Registry Editor Version 5.00`r`n[-$RK]`r`n`"V`"=dword:00000001"
+        Get-RegResult (New-RegText '"V"=dword:00000000') $r @{ (Get-SettingKey $RK 'V') = $Gone } | Should Be 'Not applied'
+    }
+
     It 'lets a key deletion remove values the same text set before it' {
         $r = "Windows Registry Editor Version 5.00`r`n[$RK]`r`n`"V`"=dword:00000001`r`n[-$RK]"
         Get-RegResult (New-RegText '"V"=dword:00000000') $r @{ (Get-SettingKey $RK 'V') = $Gone } | Should Be 'Not applied'
@@ -141,18 +156,30 @@ Describe '.reg text targets: parsing' {
 }
 
 Describe 'every .reg payload in the catalogue' {
-    # every here-string in Tweaks\*.ps1 that is a .reg file, as written in the source
-    $payloads = foreach ($f in Get-ChildItem "$PSScriptRoot\..\Tweaks" -Filter *.ps1) {
+    # every .reg file written out by a here-string in Tweaks\*.ps1, as written in the source. Some sit inside an outer
+    # here-string (a script written to disk for safe boot), so each payload runs from its header to the first here-string end.
+    # loudness-eq builds its .reg text in a loop at run time and has no payload in the source.
+    $payloads = @()
+    $headers = 0
+    foreach ($f in Get-ChildItem "$PSScriptRoot\..\Tweaks" -Filter *.ps1) {
+        $headers += @(Get-Content $f.FullName | Where-Object { $_ -ceq 'Windows Registry Editor Version 5.00' }).Count
         $ast = [Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$null)
-        $ast.FindAll({
+        $strings = $ast.FindAll({
                 param($n)
                 ($n -is [Management.Automation.Language.StringConstantExpressionAst] -or $n -is [Management.Automation.Language.ExpandableStringExpressionAst]) -and
-                "$($n.StringConstantType)" -match 'HereString' -and $n.Value.TrimStart() -like 'Windows Registry Editor Version 5.00*'
-            }, $true) | ForEach-Object { @{ Where = "$($f.Name):$($_.Extent.StartLineNumber)"; Text = $_.Value } }
+                "$($n.StringConstantType)" -match 'HereString'
+            }, $true)
+        foreach ($s in $strings) {
+            foreach ($m in [regex]::Matches($s.Value, '(?ms)^Windows Registry Editor Version 5\.00\r?$.*?(?=^`?[''"]@|\z)')) {
+                $line = $s.Extent.StartLineNumber + 1 + ($s.Value.Substring(0, $m.Index) -split "`n").Count - 1
+                $payloads += @{ Where = "$($f.Name):$line"; Text = $m.Value }
+            }
+        }
     }
 
-    It 'finds the payloads' {
-        @($payloads).Count | Should BeGreaterThan 15
+    It 'finds every payload in the source' {
+        $headers | Should BeGreaterThan 15
+        @($payloads).Count | Should Be $headers
     }
 
     foreach ($p in $payloads) {

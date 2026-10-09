@@ -33,6 +33,9 @@ function ConvertFrom-RegText([string]$Text, [switch]$DollarToken) {
     $out = [System.Collections.Generic.List[object]]::new()
     $lines = $Text -split '\r?\n'
     $key = $null
+    $underDeleted = $false
+    # regedit unescapes only \\ and \" inside quoted names and strings
+    $unescape = { param($s) $s -replace '\\([\\"])', '$1' }
     for ($i = 0; $i -lt $lines.Count; $i++) {
         $n = $i + 1
         $line = $lines[$i].Trim()
@@ -41,15 +44,18 @@ function ConvertFrom-RegText([string]$Text, [switch]$DollarToken) {
         if (-not $line -or $line.StartsWith(';') -or $line -eq 'Windows Registry Editor Version 5.00' -or $line -eq 'REGEDIT4') { continue }
         if ($line -match '^\[(-?)([^\]]+)\]$') {
             $key = $Matches[2].Trim()
-            if ($Matches[1]) { $out.Add(@{ Path = $key; KeyAbsent = $true }); $key = $null }
+            $underDeleted = [bool]$Matches[1]
+            if ($underDeleted) { $out.Add(@{ Path = $key; KeyAbsent = $true }) }
             continue
         }
         if ($line -notmatch '^(@|"((?:[^"\\]|\\.)*)")\s*=\s*(.*)$') { throw ".reg line ${n} not understood: $line" }
         if (-not $key) { throw ".reg line ${n}: value before any key: $line" }
-        $name = if ($Matches[1] -eq '@') { '' } else { $Matches[2] -replace '\\(.)', '$1' }
+        # regedit ignores values listed under a key it has just deleted
+        if ($underDeleted) { continue }
+        $name = if ($Matches[1] -eq '@') { '' } else { & $unescape $Matches[2] }
         $data = $Matches[3].Trim()
         if ($data -eq '-') { $out.Add(@{ Path = $key; Name = $name; Absent = $true }); continue }
-        if ($data -match '^"((?:[^"\\]|\\.)*)"$') { $out.Add(@{ Path = $key; Name = $name; Value = ($Matches[1] -replace '\\(.)', '$1') }); continue }
+        if ($data -match '^"((?:[^"\\]|\\.)*)"$') { $out.Add(@{ Path = $key; Name = $name; Value = (& $unescape $Matches[1]) }); continue }
         if ($data -match '^dword:([0-9a-fA-F]{1,8})$') { $out.Add(@{ Path = $key; Name = $name; Value = [long][Convert]::ToUInt32($Matches[1], 16) }); continue }
         if ($data -match '^hex(\(([0-9a-fA-F]+)\))?:((?:\s*[0-9a-fA-F]{1,2}\s*,?)*)$') {
             $type = if ($Matches[2]) { [Convert]::ToInt32($Matches[2], 16) } else { 3 }
@@ -57,7 +63,10 @@ function ConvertFrom-RegText([string]$Text, [switch]$DollarToken) {
             $value = switch ($type) {
                 # expandable string / multi-string: UTF-16LE, null-terminated
                 2 { [Text.Encoding]::Unicode.GetString($bytes).TrimEnd([char]0) }
-                7 { , [string[]]@([Text.Encoding]::Unicode.GetString($bytes).TrimEnd([char]0).Split([char]0)) }
+                7 {
+                    $ms = [Text.Encoding]::Unicode.GetString($bytes).TrimEnd([char]0)
+                    if ($ms) { , [string[]]$ms.Split([char]0) } else { , [string[]]@() }
+                }
                 4 { if ($bytes.Count -ne 4) { throw ".reg line ${n}: hex(4) needs 4 bytes: $line" }; [long][BitConverter]::ToUInt32($bytes, 0) }
                 11 { if ($bytes.Count -ne 8) { throw ".reg line ${n}: hex(b) needs 8 bytes: $line" }; [BitConverter]::ToUInt64($bytes, 0) }
                 default { , $bytes }

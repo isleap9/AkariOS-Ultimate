@@ -142,7 +142,7 @@ This work adds a **Home page** — the new default landing tab — that reads th
 ## Pattern Overview
 
 - Single-file host: all UI logic, threading, and state lives in `Akari.ps1` (~390 lines).
-- Declarative tweak DSL: `Add-Tweak -Id -Category -Name -Description -Risk -Kind ...` plus `-Apply / -Revert / -Check` scriptblocks, `-ApplyTarget / -RevertTarget` declared targets that Detect compares: either `.reg` text in a single-quoted here-string (the body imports that same text with `Import-Reg $ApplyTarget '<file>'`, see `start-layout`), or lists of `@{ Path; Name; Value }`, `@{ Path; Name; Absent = $true }`, `@{ Path; KeyAbsent = $true }` registry entries and `-Actions` sub-option arrays (`Akari.ps1:47-56`).
+- Declarative tweak DSL: `Add-Tweak -Id -Category -Name -Description -Risk -Kind ...` plus `-Apply / -Revert / -Check` scriptblocks, `-ApplyTarget / -RevertTarget` declared targets that Detect compares: either `.reg` text in a single-quoted here-string (the body imports that same text with `Import-Reg $ApplyTarget '<file>'`, see `start-layout`), or lists of `@{ Path; Name; Value }`, `@{ Path; Name; Absent = $true }`, `@{ Path; KeyAbsent = $true }` registry entries; plus `-Actions` sub-option arrays (`Add-Tweak` in `Akari.ps1`).
 - Dot-source composition: `foreach ($f in Get-ChildItem "$Root\Tweaks" -Filter *.ps1 ...) { . $f.FullName }` (`Akari.ps1:56`) — every `Tweaks/*.ps1` file appends to the shared `$script:Tweaks` list.
 - UI-thread isolation: tweak bodies never run on the UI thread; `Invoke-Code` marshals them into a fresh runspace and a `DispatcherTimer` pumps log output back (`Akari.ps1:223-256`).
 
@@ -184,7 +184,7 @@ This work adds a **Home page** — the new default landing tab — that reads th
 
 - Purpose: Single unit of user-visible functionality; everything in the UI derives from it.
 - Examples: `Tweaks/Check.ps1:3` (Action), `Tweaks/Setup.ps1:3` (Toggle with Apply+Revert), `Tweaks/Refresh.ps1:15` (Group with `-Actions`), `Tweaks/Refresh.ps1:40` (Console with `-Script`), `widgets` / `gamebar` in `Tweaks/Windows.ps1` (Toggle with `-ApplyTarget`/`-RevertTarget`).
-- Pattern: `Add-Tweak -Id <slug> -Category <1 of 8> -Kind <Toggle|Action|Group|Console> -Risk <Safe|Caution|Advanced> [-Button <label>] [-Confirm <text>] [-Script <relpath>] [-Apply {}] [-Revert {}] [-Check {}] [-ApplyTarget @(...)] [-RevertTarget @(...)] [-Actions @(@{Name; Description; Button; [Confirm]; Block})]` — defaults are `Risk Safe`, `Kind Toggle`, `Button 'Run'` (`Akari.ps1:47-56`).
+- Pattern: `Add-Tweak -Id <slug> -Category <1 of 8> -Kind <Toggle|Action|Group|Console> -Risk <Safe|Caution|Advanced> [-Button <label>] [-Confirm <text>] [-Script <relpath>] [-Apply {}] [-Revert {}] [-Check {}] [-ApplyTarget <.reg text | @(...)>] [-RevertTarget <.reg text | @(...)>] [-Actions @(@{Name; Description; Button; [Confirm]; Block})]` — defaults are `Risk Safe`, `Kind Toggle`, `Button 'Run'` (`Add-Tweak` in `Akari.ps1`).
 - Purpose: Determines which buttons `New-Row` renders and what the click handler does.
 - Examples: Toggle `memory-compression` (`Tweaks/Setup.ps1:37` — Optimize/Default + optional Check); Action `storage-check` (`Tweaks/Check.ps1:46`); Group `reinstall` (`Tweaks/Refresh.ps1:15` — expandable `Options` sub-rows) and `bloatware` (`Tweaks/Windows.ps1:863` — main `Remove all` + Options); Console `autounattend` (`Tweaks/Refresh.ps1:40`).
 - Pattern: `New-Row` branches on `$t.Kind` (`Akari.ps1:129-138`); the click handler `switch ($kind)` handles `Apply/Revert/Check/Run/Sub/Expand` (`Akari.ps1:272-289`).
@@ -238,7 +238,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tests\Run.ps1
 
 It prints pass/fail per test and exits with the number of failed tests (0 = all passed).
 
-- Tests cover `StateChecker.ps1` only, through its public functions: fake targets/readings in, Detect result out. They never read or write the real registry, services or UI.
+- Tests cover `StateChecker.ps1` only, through its public functions: fake targets/readings in, Detect result out. They never read or write the real registry, services or UI. One exception reads source: `Tests\RegTargets.Tests.ps1` parses `Tweaks\*.ps1` (without running it) so every embedded `.reg` payload must parse.
 - Use Pester 3 syntax (`Describe`/`It`/`Should Be`); `Tests\Run.ps1` loads the newest Pester 3.x/4.x and fails if only Pester 5 is installed.
 - New test files go in `Tests\` named `<Thing>.Tests.ps1` and dot-source what they test from `$PSScriptRoot\..`.
 
