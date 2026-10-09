@@ -40,7 +40,7 @@ $script:SpecJob = $null
 $script:SpecPending = $false
 $script:CopiedUntil = $null
 # a spec read still running after this many seconds is abandoned
-$script:SpecTimeoutSec = 20
+$script:SpecTimeoutSec = 30
 $script:SpecStale = [System.Collections.Generic.List[object]]::new()
 $PrioKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl'
 
@@ -610,6 +610,8 @@ function Add-Row($card, [string]$label, [string]$value, [string]$brushKey = 'Tx'
     $first = (@($sp.Children | Where-Object { $_ -is [Windows.Controls.Grid] }).Count -eq 0)
     $g = [Windows.Controls.Grid]::new()
     $g.Margin = [Windows.Thickness]::new(0, $(if ($first) { 0 } else { 4 }), 0, 0)
+    # health rows tagged so they can stay at full opacity during a refresh dim
+    $g.Tag = $(if ($brushKey -ne 'Tx') { 'Health' } else { $null })
     $c0 = [Windows.Controls.ColumnDefinition]::new(); $c0.Width = [Windows.GridLength]::new(72)
     $c1 = [Windows.Controls.ColumnDefinition]::new(); $c1.Width = [Windows.GridLength]::new(1, [Windows.GridUnitType]::Star)
     [void]$g.ColumnDefinitions.Add($c0); [void]$g.ColumnDefinitions.Add($c1)
@@ -862,18 +864,24 @@ function Start-SpecRead {
     if ($script:SpecJob) { return }
     # a tweak is running: defer the read until it finishes
     if ($script:Busy) { $script:SpecPending = $true; Set-HomeDim; return }
-    $rs = [runspacefactory]::CreateRunspace()
-    $rs.Open()
-    $ps = [powershell]::Create()
-    $ps.Runspace = $rs
-    $resultCollection = [System.Management.Automation.PSDataCollection[object]]::new()
-    [void]$ps.AddScript($SpecReadCode)
-    # ps 5.1 cannot bind the generic BeginInvoke overload with $null input, pass an empty completed collection
-    $inputCollection = [System.Management.Automation.PSDataCollection[object]]::new()
-    $inputCollection.Complete()
-    $script:SpecJob = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke($inputCollection, $resultCollection); ResultCollection = $resultCollection; Deadline = [DateTime]::UtcNow.AddSeconds($script:SpecTimeoutSec) }
-    $script:SpecPending = $false
-    Set-HomeDim
+    try {
+        $rs = [runspacefactory]::CreateRunspace()
+        $rs.Open()
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+        $resultCollection = [System.Management.Automation.PSDataCollection[object]]::new()
+        [void]$ps.AddScript($SpecReadCode)
+        # ps 5.1 cannot bind the generic BeginInvoke overload with $null input, pass an empty completed collection
+        $inputCollection = [System.Management.Automation.PSDataCollection[object]]::new()
+        $inputCollection.Complete()
+        $script:SpecJob = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke($inputCollection, $resultCollection); ResultCollection = $resultCollection; Deadline = [DateTime]::UtcNow.AddSeconds($script:SpecTimeoutSec); StartTime = [DateTime]::UtcNow; LoggedSlow = $false }
+        $script:SpecPending = $false
+        Set-HomeDim
+    } catch {
+        Add-Log "Error: Spec read failed to start: $($_.Exception.Message)"
+        $script:SpecJob = $null
+        $script:SpecPending = $false
+    }
 }
 
 function Set-HomeDim {
@@ -881,6 +889,12 @@ function Set-HomeDim {
     if ($null -eq $script:SpecData -or -not $Cards) { return }
     $Cards.Opacity = 0.6
     $HostSub.Opacity = 0.6
+    # health values stay at full opacity so they remain readable during the dim
+    foreach ($card in $Cards.Children) {
+        foreach ($child in $card.Child.Children) {
+            if ($child -is [Windows.Controls.Grid] -and $child.Tag -eq 'Health') { $child.Opacity = 1.0 }
+        }
+    }
 }
 
 $timer = [Windows.Threading.DispatcherTimer]::new()
@@ -890,6 +904,12 @@ $timer.Add_Tick({
     while ($script:Queue.TryDequeue([ref]$m)) { Add-Log $m }
     # copy specs label: back to its normal text once the two second flash has passed
     if ($script:CopiedUntil -and [DateTime]::UtcNow -ge $script:CopiedUntil) { $CopySpecs.Content = 'Copy specs'; $script:CopiedUntil = $null }
+    # watchdog feedback: log once when a read has been running longer than 5 seconds
+    $sj = $script:SpecJob
+    if ($sj -and -not $sj.Handle.IsCompleted -and -not $sj.LoggedSlow -and $sj.StartTime -and ([DateTime]::UtcNow - $sj.StartTime).TotalSeconds -gt 5) {
+        $sj.LoggedSlow = $true
+        Add-Log 'Specs: Reading (taking longer than usual)...'
+    }
     # home spec read finished: store the composite and redraw only the cards
     $sj = $script:SpecJob
     # watchdog: a read past its deadline is abandoned so home never stays dimmed
@@ -945,8 +965,8 @@ $timer.Add_Tick({
         Set-Busy $false
         Read-Svc
         Show-Page
-        # a home read was requested while the tweak ran: start it now
-        if ($script:SpecPending) { Start-SpecRead }
+        # a home read was requested while the tweak ran: start it now (only on the Home page)
+        if ($script:SpecPending -and $script:Cat -eq 'Home') { Start-SpecRead }
     }
 })
 $timer.Start()
