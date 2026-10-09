@@ -1,5 +1,3 @@
-<!-- GSD:project-start source:PROJECT.md -->
-
 ## Project
 
 **AkariOS-Ultimate**
@@ -17,15 +15,11 @@ This work adds a **Home page** — the new default landing tab — that reads th
 - **Performance**: Live spec queries on every Home show must stay fast and off the UI thread
 - **UI consistency**: Card grid must fit the existing dark-theme XAML (`Ink` tokens, `Bg S1 S2 Bd Tx Mu` resources)
 
-<!-- GSD:project-end -->
-
-<!-- GSD:stack-start source:codebase/STACK.md -->
-
 ## Technology Stack
 
 ## Languages
 
-- PowerShell 5.1 (Windows PowerShell) - All logic: `Akari.ps1`, `IWR.ps1`, `Tweaks/*.ps1`, ~114 numbered scripts under `1 Check/`–`8 Advanced/`
+- PowerShell 5.1 (Windows PowerShell) - All logic: `Akari.ps1`, `IWR.ps1`, `Tweaks/*.ps1`
 - XAML (WPF markup) - Declarative UI in `UI/MainWindow.xaml`
 - Batch (`.cmd`) - Execution-policy bootstrap in `AllowScripts.cmd`
 - Inline C# (P/Invoke signature only) - Single `DllImport("dwmapi.dll")` declaration in `Akari.ps1:16`
@@ -41,7 +35,7 @@ This work adds a **Home page** — the new default landing tab — that reads th
 ## Frameworks
 
 - WPF (`PresentationFramework, PresentationCore, WindowsBase, System.Xaml` loaded via `Add-Type` in `Akari.ps1:15`) - Entire UI; windows parsed with `[Windows.Markup.XamlReader]::Parse` (`Akari.ps1:103,172`)
-- `System.Windows.Forms` + `System.Drawing` - Folder/file dialogs and wallpaper image manipulation in tweak scripts (e.g. `Tweaks/Windows.ps1:718,721`, `8 Advanced/10 Priority.ps1:115`, `6 Windows/6 Signout Lockscreen Wallpaper Black.ps1:22`)
+- `System.Windows.Forms` + `System.Drawing` - Folder/file dialogs and wallpaper image manipulation in tweak scripts (e.g. `Tweaks/Windows.ps1:718,721`)
 - .NET Runspaces (`[runspacefactory]::CreateRunspace()` in `Akari.ps1:227`) - Background execution of tweak `Apply`/`Revert`/`Check` scriptblocks so the UI stays responsive
 - `Windows.Threading.DispatcherTimer` (150 ms tick, `Akari.ps1:237`) - Drains the log queue and completes background jobs on the UI thread
 - None. No test runner, assertion library, or `*.test.*` / `*.spec.*` / `Pester` files detected
@@ -68,15 +62,10 @@ This work adds a **Home page** — the new default landing tab — that reads th
 - Windows 10/11 machine with Windows PowerShell 5.1 and .NET Framework WPF stack; Administrator shell; edit `.ps1`/`.xaml` with any text editor — no toolchain install needed
 - Windows 10/11 Home/Pro/LTSC/IoT/Server, x64, online access (`README.md:6-8`); Administrator + reboot required for tweaks to apply (`README.md:4`); single static asset pair `Assets/AkariLogo.png` / `Assets/AkariLogo.ico` loaded at `Akari.ps1:106-112`
 
-<!-- GSD:stack-end -->
-
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
-
 ## Conventions
 
 ## Naming Patterns
 
-- Standalone scripts: `"<N> <Name>.ps1"` with numeric prefix + Title Case, spaces allowed — e.g. `1 Check\1 Bios Check.ps1`, `8 Advanced\1 Defender.ps1`, `6 Windows\29 Power Plan.ps1`.
 - Category registration files: PascalCase singular — `Tweaks/Check.ps1`, `Tweaks/Windows.ps1`, `Tweaks/Setup.ps1`, `Tweaks/Refresh.ps1`, `Tweaks/Installers.ps1`, `Tweaks/Graphics.ps1`, `Tweaks/Hardware.ps1`, `Tweaks/Advanced.ps1`.
 - Host/launcher: `Akari.ps1` (WPF app), `IWR.ps1` (bootstrapper), `AllowScripts.cmd` (batch helper), `UI/MainWindow.xaml` (view).
 - Tweak IDs (the `-Id` argument): kebab-case, lowercase — e.g. `'bios-check'`, `'start-taskbar'`, `'memory-compression'`, `'adv-defender'` in `Tweaks/Check.ps1`, `Tweaks/Windows.ps1`, `Tweaks/Setup.ps1`, `Tweaks/Advanced.ps1`.
@@ -93,7 +82,7 @@ This work adds a **Home page** — the new default landing tab — that reads th
 ## Code Style
 
 - No formatter config in repo (no `.editorconfig`, no `PSScriptAnalyzerSettings.psd1`, no Prettier/ESLint — PowerShell-only repo, those tools do not apply).
-- De-facto style: 4-space indent in `Akari.ps1` core; tweak `Apply`/`Revert`/`Detect`/`Check` scriptblock bodies are emitted at column 0 (no indent) — match the surrounding file, do not "fix" indentation inside GENERATED bodies.
+- De-facto style: 4-space indent in `Akari.ps1` core; tweak `Apply`/`Revert`/`Detect`/`Check` scriptblock bodies are emitted at column 0 (no indent) — match the surrounding file, do not "fix" indentation inside tweak bodies.
 - Line continuation with backtick + aligned `-Parameter` pairs for `Add-Tweak` registrations:
 - Quoting: single quotes for static strings, double quotes only when interpolating (`"$Root\$sub"`, `"Win32PrioritySeparation = $hex"`). Escaped quotes inside `cmd /c "reg add `"`"…" strings use the backtick-doublequote form — preserve it exactly.
 - Only version gate in the repo: `#requires -Version 5.1` at the top of `Akari.ps1`. New entry-point scripts must start with the same line.
@@ -110,32 +99,25 @@ This work adds a **Home page** — the new default landing tab — that reads th
 - Registry-via-`cmd` silencing: every `cmd /c "reg add/delete …"` ends with `>nul 2>&1` (hundreds of instances in `Tweaks/Windows.ps1`, `Tweaks/Advanced.ps1`). Always include the redirect on new `cmd /c reg …` lines.
 - Host-level safety nets (do not remove): the file-top `trap { Write-ErrLog …; Show message box; exit }` (`Akari.ps1` line 28) and the `$window.Dispatcher.Add_UnhandledException({ … $ev.Handled = $true; Add-Log …; Set-Busy $false })` handler (`Akari.ps1` lines 382–388).
 - Runspace execution wraps every tweak body: `try { & { <code> } *>&1 | Out-String -Stream | … } catch { Write-Log ('Error: ' + $_.Exception.Message) }` (`Invoke-Code` in `Akari.ps1` line 232), plus `EndInvoke` in try/catch and draining `$j.Ps.Streams.Error` into the log (lines 244–245). Tweak code itself must not try to surface errors modally — `Write-Log '…'` / `Write-Host '…'` is the channel.
-- Standalone scripts (numbered folders) use the interactive variant: print with `Write-Host "…`n" -ForegroundColor Red`, then `Pause`, then `exit` on preconditions — e.g. the internet gate in `1 Check\1 Bios Check.ps1`:
 - Do NOT set `$ErrorActionPreference = 'Stop'` or `Set-StrictMode` — the codebase depends on tolerant reads (missing keys, absent services, already-removed packages).
 
 ## Logging
 
 - Inside any `Add-Tweak` `Apply`/`Revert`/`Check`/`Block` scriptblock, use `Write-Host "Narrative…"` for user-visible progress and `Write-Log '…'` for guard messages. Both land in the log drawer with an `HH:mm:ss` prefix via `Add-Log` (`Akari.ps1` lines 119–122).
 - Fatal/host errors go to `%LOCALAPPDATA%\Akari\akari.log` via `Write-ErrLog` (`Akari.ps1` lines 24–27) — reserved for host crashes and UI-thread exceptions, not per-tweak output.
-- Standalone scripts log to the console only (`Write-Host` + `Pause` + `Clear-Host`); they must remain readable when double-clicked in their own console window.
 - Rules: never `Write-Output` objects from tweak bodies (output is stringified into the log stream); never pop `MessageBox` from tweak code (only `Akari.ps1` host chrome and `-Confirm` prompts may do that); keep messages in `Title Case: Verb…` form (`"Defender: Disable..."`, `"Memory Compression: Off"`).
 
 ## Comments
 
 - Every registry/cmd block gets a one-line lowercase comment naming the intent: `# disable widgets regedit`, `# import reg file`, `# restart explorer`, `# stop store running`, `# create reg file` (pervasive in `Tweaks/Windows.ps1`, `Tweaks/Advanced.ps1`). Add one above each new `reg add/delete`, `schtasks`, `bcdedit`, or service change.
 - Precondition/caveat comments stay with the command: `# breaks file explorer`, `# windows 11 breaks msi installers if removed`, `# needs safe boot as trusted installer`, `# can't turn back on` (see AppX/Capability whitelists in `Tweaks/Windows.ps1` and Defender blocks in `Tweaks/Advanced.ps1`).
-- File headers state provenance: `# <Category> category. GENERATED from the AkariOS-Ultimate '<N> <Name>' scripts…` (`Tweaks/*.ps1` line 1–2). Do not hand-edit GENERATED bodies without also updating the numbered-folder original.
-- `8 Advanced\1 Defender.ps1`, `1 Check\1 Bios Check.ps1` open with the same three banners — reproduce verbatim in new standalone scripts:
+- `Tweaks/*.ps1` are the single source of truth for every Tweak (see `docs/adr/0001-tweak-catalogue-is-single-source.md`); edit them directly. Their old "GENERATED from the '<N> <Name>' scripts" headers are stale and should be dropped when touched.
 - Inline step banners inside bodies are `# <verb> <thing>` lowercase (`# download cpuz`, `# extract files`, `# set start menu apps view to list` in `Tweaks/Check.ps1`, `Tweaks/Windows.ps1`).
 - Not applicable (no TypeScript). PowerShell comment-based help (`<# .SYNOPSIS … #>`) is not used anywhere — do not introduce it; follow the banner style above.
 
 ## Function Design
 
 ## Module Design
-
-<!-- GSD:conventions-end -->
-
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
 
 ## Architecture
 
@@ -152,7 +134,6 @@ This work adds a **Home page** — the new default landing tab — that reads th
 | Main shell / host | Elevation + STA relaunch, tweak registry (`Add-Tweak`), XAML row generation, page/search rendering, background-runspace execution, log pump, state persistence, two built-in registry tuners | `Akari.ps1` |
 | View definition | Single-window layout: sidebar `Nav`, `Search`, `Heading`, `Tuner` + `SvcTuner` panels, `Rows` container, `Log` drawer; `Ink` dark-theme resource tokens | `UI/MainWindow.xaml` |
 | Tweak catalog (data) | Eight category files that call `Add-Tweak` to register every tweak; bodies are the actual payload scripts | `Tweaks/Check.ps1`, `Tweaks/Refresh.ps1`, `Tweaks/Setup.ps1`, `Tweaks/Installers.ps1`, `Tweaks/Graphics.ps1`, `Tweaks/Windows.ps1`, `Tweaks/Hardware.ps1`, `Tweaks/Advanced.ps1` |
-| Legacy standalone scripts | Original per-task console scripts (`ADMIN` + `INTERNET` preamble, `Pause`); the `Tweaks/*.ps1` files are GENERATED compilations of these | `1 Check/`, `2 Refresh/`, `3 Setup/`, `4 Installers/`, `5 Graphics/`, `6 Windows/`, `7 Hardware/`, `8 Advanced/` |
 | Remote bootstrapper | Self-elevates, downloads the `main.zip` from GitHub, extracts to `C:\AkariOS-Ultimate`, relaxes execution policy, unblocks files, launches `Akari.ps1` hidden | `IWR.ps1` |
 | Policy helper | Interactive `cmd` menu that sets `Unrestricted` (On) or `Restricted` (Off) execution policy + file unblock | `AllowScripts.cmd` |
 | Branding | Window logo / icon (`AkariLogo.png` loaded at `Akari.ps1:106-112`) | `Assets/AkariLogo.png`, `Assets/AkariLogo.ico` |
@@ -162,7 +143,6 @@ This work adds a **Home page** — the new default landing tab — that reads th
 - Single-file host: all UI logic, threading, and state lives in `Akari.ps1` (~390 lines).
 - Declarative tweak DSL: `Add-Tweak -Id -Category -Name -Description -Risk -Kind ...` plus `-Apply / -Revert / -Detect / -Check` scriptblocks and `-Actions` sub-option arrays (`Akari.ps1:40-49`).
 - Dot-source composition: `foreach ($f in Get-ChildItem "$Root\Tweaks" -Filter *.ps1 ...) { . $f.FullName }` (`Akari.ps1:56`) — every `Tweaks/*.ps1` file appends to the shared `$script:Tweaks` list.
-- GENERATED data layer: each `Tweaks/*.ps1` header states it is GENERATED from the corresponding numbered folder (e.g. `# Check category. GENERATED from the AkariOS-Ultimate '1 Check' scripts.` in `Tweaks/Check.ps1:1`).
 - UI-thread isolation: tweak bodies never run on the UI thread; `Invoke-Code` marshals them into a fresh runspace and a `DispatcherTimer` pumps log output back (`Akari.ps1:223-256`).
 
 ## Layers
@@ -187,11 +167,6 @@ This work adds a **Home page** — the new default landing tab — that reads th
 - Contains: Resource tokens (`Bg S1 S2 Bd Tx Mu Inv InvT Warn Bad`), `Btn`/`BtnP`/`Nav`/`Chip`/`Flat` styles, named elements the host grabs via `FindName` (`Nav Search Heading Tuner SvcTuner SvcCur Rows Page Log Hex Dec Logo` — `Akari.ps1:104`).
 - Depends on: Nothing at rest; the host parses it with `XamlReader::Parse` (`Akari.ps1:103`).
 - Used by: `Akari.ps1` exclusively.
-- Purpose: Standalone console versions of each task (double-clickable scripts with their own admin-elevation preamble).
-- Location: `1 Check/` … `8 Advanced/` numbered folders.
-- Contains: Self-contained `.ps1` files (e.g. `1 Check\1 Bios Check.ps1`), including large installers (`4 Installers\1 Installers.ps1` ~45 KB, `4 Installers\2 MSI Afterburner.ps1` ~83 KB).
-- Depends on: Nothing in the repo — they run standalone.
-- Used by: `Console`-kind tweaks that shell out via `-Script '<folder>\<file>.ps1'` in a new `powershell.exe` window (`Akari.ps1:276-280`); and as the source material for regenerating `Tweaks/*.ps1`.
 
 ## Data Flow
 
@@ -243,8 +218,6 @@ This work adds a **Home page** — the new default landing tab — that reads th
 
 ## Anti-Patterns
 
-### GENERATED files edited as if they were source
-
 ### TrustedInstaller service hijack as a library function
 
 ## Error Handling
@@ -255,38 +228,6 @@ This work adds a **Home page** — the new default landing tab — that reads th
 - Defensive reads: `Get-State` swallows `Detect` exceptions (`Akari.ps1:177`); registry reads use `-ErrorAction SilentlyContinue` throughout tweak bodies; `Confirm-Run` gates destructive actions.
 
 ## Cross-Cutting Concerns
-
-<!-- GSD:architecture-end -->
-
-<!-- GSD:skills-start source:skills/ -->
-
-## Project Skills
-
-No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
-<!-- GSD:skills-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-
-## GSD Workflow Enforcement
-
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-- `/gsd-fast` for a trivial task inline, with no subagents and no PLAN.md
-- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd-debug` for investigation and bug fixing
-- `/gsd-execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-<!-- GSD:profile-start -->
-
-## Developer Profile
-
-> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
 
 ## Agent skills
 
