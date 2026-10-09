@@ -806,9 +806,14 @@ cmd /c "reg add `"HKLM\SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests
 # windows widgets from taskbar regedit
 cmd /c "reg delete `"HKLM\SOFTWARE\Policies\Microsoft\Dsh`" /f >nul 2>&1"
     } `
-    -Detect {
-        (Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh' -ErrorAction SilentlyContinue).AllowNewsAndInterests -eq 0
-    }
+    -ApplyTarget @(
+        @{ Path = 'HKLM:\SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests'; Name = 'value'; Value = 0 }
+        @{ Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh'; Name = 'AllowNewsAndInterests'; Value = 0 }
+    ) `
+    -RevertTarget @(
+        @{ Path = 'HKLM:\SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests'; Name = 'value'; Value = 1 }
+        @{ Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh'; Name = 'AllowNewsAndInterests'; Absent = $true }
+    )
 
 Add-Tweak -Id 'copilot' -Category 'Windows' -Name 'Copilot' -Risk Safe `
     -Description 'Turn off Copilot' `
@@ -1505,9 +1510,32 @@ IWR "https://github.com/isleap9/AkariOS-Files/releases/download/Files/gamingrepa
 # start gamebar repair tool
 Start-Process "$env:SystemRoot\Temp\gamingrepairtool.exe"
     } `
-    -Detect {
-        (Get-ItemProperty 'HKCU:\Software\Microsoft\GameBar' -ErrorAction SilentlyContinue).UseNexusForGameBarEnabled -eq 0
-    }
+    -ApplyTarget @(
+        # the .reg payload writes "(Default)" as a value literally named (Default)
+        @{ Path = 'HKCU:\System\GameConfigStore'; Name = 'GameDVR_Enabled'; Value = 0 }
+        @{ Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR'; Name = 'AppCaptureEnabled'; Value = 0 }
+        @{ Path = 'HKCU:\Software\Microsoft\GameBar'; Name = 'UseNexusForGameBarEnabled'; Value = 0 }
+        @{ Path = 'HKCU:\Software\Microsoft\GameBar'; Name = 'GamepadNexusChordEnabled'; Value = 0 }
+        @{ Path = 'HKCR:\ms-gamebar'; Name = 'NoOpenWith'; Value = '' }
+        @{ Path = 'HKCR:\ms-gamebar\shell\open\command'; Name = '(Default)'; Value = '%SystemRoot%\System32\systray.exe' }
+        @{ Path = 'HKCR:\ms-gamebarservices\shell\open\command'; Name = '(Default)'; Value = '%SystemRoot%\System32\systray.exe' }
+        @{ Path = 'HKCR:\ms-gamingoverlay'; Name = 'NoOpenWith'; Value = '' }
+        @{ Path = 'HKCR:\ms-gamingoverlay\shell\open\command'; Name = '(Default)'; Value = '%SystemRoot%\System32\systray.exe' }
+        @{ Path = 'HKLM:\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Windows.Gaming.GameBar.PresenceServer.Internal.PresenceWriter'; Name = 'ActivationType'; Value = 0 }
+    ) `
+    -RevertTarget @(
+        # service start types are only set by Revert (Apply never changes them), so they are left out of Detect
+        @{ Path = 'HKCU:\System\GameConfigStore'; Name = 'GameDVR_Enabled'; Value = 0 }
+        @{ Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR'; Name = 'AppCaptureEnabled'; Absent = $true }
+        @{ Path = 'HKCU:\Software\Microsoft\GameBar'; Name = 'UseNexusForGameBarEnabled'; Absent = $true }
+        @{ Path = 'HKCU:\Software\Microsoft\GameBar'; Name = 'GamepadNexusChordEnabled'; Absent = $true }
+        @{ Path = 'HKCR:\ms-gamebar'; Name = 'NoOpenWith'; Absent = $true }
+        @{ Path = 'HKCR:\ms-gamebar\shell\open\command'; Name = '(Default)'; Absent = $true }
+        @{ Path = 'HKCR:\ms-gamebarservices\shell\open\command'; Name = '(Default)'; Absent = $true }
+        @{ Path = 'HKCR:\ms-gamingoverlay'; Name = 'NoOpenWith'; Absent = $true }
+        @{ Path = 'HKCR:\ms-gamingoverlay\shell\open\command'; Name = '(Default)'; Absent = $true }
+        @{ Path = 'HKLM:\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Windows.Gaming.GameBar.PresenceServer.Internal.PresenceWriter'; Name = 'ActivationType'; Value = 1 }
+    )
 
 Add-Tweak -Id 'edge-webview' -Category 'Windows' -Name 'Edge and WebView' -Risk Advanced -Confirm 'Uninstall Microsoft Edge and WebView2? Some apps need WebView2.' `
     -Description 'Uninstall Microsoft Edge and WebView2' `

@@ -82,7 +82,7 @@ This work adds a **Home page** — the new default landing tab — that reads th
 ## Code Style
 
 - No formatter config in repo (no `.editorconfig`, no `PSScriptAnalyzerSettings.psd1`, no Prettier/ESLint — PowerShell-only repo, those tools do not apply).
-- De-facto style: 4-space indent in `Akari.ps1` core; tweak `Apply`/`Revert`/`Detect`/`Check` scriptblock bodies are emitted at column 0 (no indent) — match the surrounding file, do not "fix" indentation inside tweak bodies.
+- De-facto style: 4-space indent in `Akari.ps1` core; tweak `Apply`/`Revert`/`Check` scriptblock bodies are emitted at column 0 (no indent) — match the surrounding file, do not "fix" indentation inside tweak bodies.
 - Line continuation with backtick + aligned `-Parameter` pairs for `Add-Tweak` registrations:
 - Quoting: single quotes for static strings, double quotes only when interpolating (`"$Root\$sub"`, `"Win32PrioritySeparation = $hex"`). Escaped quotes inside `cmd /c "reg add `"`"…" strings use the backtick-doublequote form — preserve it exactly.
 - Only version gate in the repo: `#requires -Version 5.1` at the top of `Akari.ps1`. New entry-point scripts must start with the same line.
@@ -95,7 +95,7 @@ This work adds a **Home page** — the new default landing tab — that reads th
 ## Error Handling
 
 - Default posture is *suppress-and-continue*: append `-ErrorAction SilentlyContinue | Out-Null` to destructive/optional operations (`Remove-Item`, `Stop-Process`, `Get-ItemProperty`, `Disable-MMAgent`, `Remove-AppxPackage`, `Unblock-File`). Example from `Tweaks/Setup.ps1`:
-- Swallow blocks for best-effort probes: `try { … } catch { }` with an empty catch (state-file load in `Akari.ps1` line 62, `Get-State`/`Detect` invocation line 177, `Disable-BitLocker` loop in `Tweaks/Setup.ps1`).
+- Swallow blocks for best-effort probes: `try { … } catch { }` with an empty catch (state-file load in `Akari.ps1` line 62, `Disable-BitLocker` loop in `Tweaks/Setup.ps1`).
 - Registry-via-`cmd` silencing: every `cmd /c "reg add/delete …"` ends with `>nul 2>&1` (hundreds of instances in `Tweaks/Windows.ps1`, `Tweaks/Advanced.ps1`). Always include the redirect on new `cmd /c reg …` lines.
 - Host-level safety nets (do not remove): the file-top `trap { Write-ErrLog …; Show message box; exit }` (`Akari.ps1` line 28) and the `$window.Dispatcher.Add_UnhandledException({ … $ev.Handled = $true; Add-Log …; Set-Busy $false })` handler (`Akari.ps1` lines 382–388).
 - Runspace execution wraps every tweak body: `try { & { <code> } *>&1 | Out-String -Stream | … } catch { Write-Log ('Error: ' + $_.Exception.Message) }` (`Invoke-Code` in `Akari.ps1` line 232), plus `EndInvoke` in try/catch and draining `$j.Ps.Streams.Error` into the log (lines 244–245). Tweak code itself must not try to surface errors modally — `Write-Log '…'` / `Write-Host '…'` is the channel.
@@ -142,7 +142,7 @@ This work adds a **Home page** — the new default landing tab — that reads th
 ## Pattern Overview
 
 - Single-file host: all UI logic, threading, and state lives in `Akari.ps1` (~390 lines).
-- Declarative tweak DSL: `Add-Tweak -Id -Category -Name -Description -Risk -Kind ...` plus `-Apply / -Revert / -Detect / -Check` scriptblocks and `-Actions` sub-option arrays (`Akari.ps1:40-49`).
+- Declarative tweak DSL: `Add-Tweak -Id -Category -Name -Description -Risk -Kind ...` plus `-Apply / -Revert / -Check` scriptblocks, `-ApplyTarget / -RevertTarget` declared targets (lists of `@{ Path; Name; Value }` or `@{ Path; Name; Absent = $true }` registry values that Detect compares) and `-Actions` sub-option arrays (`Akari.ps1:47-56`).
 - Dot-source composition: `foreach ($f in Get-ChildItem "$Root\Tweaks" -Filter *.ps1 ...) { . $f.FullName }` (`Akari.ps1:56`) — every `Tweaks/*.ps1` file appends to the shared `$script:Tweaks` list.
 - UI-thread isolation: tweak bodies never run on the UI thread; `Invoke-Code` marshals them into a fresh runspace and a `DispatcherTimer` pumps log output back (`Akari.ps1:223-256`).
 
@@ -183,8 +183,8 @@ This work adds a **Home page** — the new default landing tab — that reads th
 ## Key Abstractions
 
 - Purpose: Single unit of user-visible functionality; everything in the UI derives from it.
-- Examples: `Tweaks/Check.ps1:3` (Action), `Tweaks/Setup.ps1:3` (Toggle with Apply+Revert), `Tweaks/Refresh.ps1:15` (Group with `-Actions`), `Tweaks/Refresh.ps1:40` (Console with `-Script`), `Tweaks/Windows.ps1:809-811` (Toggle with `-Detect`).
-- Pattern: `Add-Tweak -Id <slug> -Category <1 of 8> -Kind <Toggle|Action|Group|Console> -Risk <Safe|Caution|Advanced> [-Button <label>] [-Confirm <text>] [-Script <relpath>] [-Apply {}] [-Revert {}] [-Detect {}] [-Check {}] [-Actions @(@{Name; Description; Button; [Confirm]; Block})]` — defaults are `Risk Safe`, `Kind Toggle`, `Button 'Run'` (`Akari.ps1:40-49`).
+- Examples: `Tweaks/Check.ps1:3` (Action), `Tweaks/Setup.ps1:3` (Toggle with Apply+Revert), `Tweaks/Refresh.ps1:15` (Group with `-Actions`), `Tweaks/Refresh.ps1:40` (Console with `-Script`), `widgets` / `gamebar` in `Tweaks/Windows.ps1` (Toggle with `-ApplyTarget`/`-RevertTarget`).
+- Pattern: `Add-Tweak -Id <slug> -Category <1 of 8> -Kind <Toggle|Action|Group|Console> -Risk <Safe|Caution|Advanced> [-Button <label>] [-Confirm <text>] [-Script <relpath>] [-Apply {}] [-Revert {}] [-Check {}] [-ApplyTarget @(...)] [-RevertTarget @(...)] [-Actions @(@{Name; Description; Button; [Confirm]; Block})]` — defaults are `Risk Safe`, `Kind Toggle`, `Button 'Run'` (`Akari.ps1:40-49`).
 - Purpose: Determines which buttons `New-Row` renders and what the click handler does.
 - Examples: Toggle `memory-compression` (`Tweaks/Setup.ps1:37` — Optimize/Default + optional Check); Action `storage-check` (`Tweaks/Check.ps1:46`); Group `reinstall` (`Tweaks/Refresh.ps1:15` — expandable `Options` sub-rows) and `bloatware` (`Tweaks/Windows.ps1:863` — main `Remove all` + Options); Console `autounattend` (`Tweaks/Refresh.ps1:40`).
 - Pattern: `New-Row` branches on `$t.Kind` (`Akari.ps1:129-138`); the click handler `switch ($kind)` handles `Apply/Revert/Check/Run/Sub/Expand` (`Akari.ps1:272-289`).
@@ -226,7 +226,7 @@ This work adds a **Home page** — the new default landing tab — that reads th
 - Startup trap: `trap { Write-ErrLog ...; MessageBox; exit }` (`Akari.ps1:28`) — full stop with `akari.log` entry.
 - Runspace guard: `Invoke-Code` wraps bodies in `try/catch` that `Write-Log ('Error: ' + ...)`; completion handler also drains `$ps.Streams.Error` (`Akari.ps1:232, 243-245`).
 - UI-thread guard: `Dispatcher.UnhandledException` marks handled, logs to drawer + file, resets `$script:Busy` (`Akari.ps1:382-388`).
-- Defensive reads: `Get-State` swallows `Detect` exceptions (`Akari.ps1:177`); registry reads use `-ErrorAction SilentlyContinue` throughout tweak bodies; `Confirm-Run` gates destructive actions.
+- Defensive reads: the background Detect read reports an unreadable value as Unknown with its reason in the log drawer, and rows still unanswered at the deadline become Unknown; registry reads use `-ErrorAction SilentlyContinue` throughout tweak bodies; `Confirm-Run` gates destructive actions.
 
 ## Testing
 

@@ -41,7 +41,13 @@ $script:SpecPending = $false
 $script:CopiedUntil = $null
 # a spec read still running after this many seconds is abandoned
 $script:SpecTimeoutSec = 30
-$script:SpecStale = [System.Collections.Generic.List[object]]::new()
+# abandoned background reads (spec or detect), disposed once their pipeline has really ended
+$script:Stale = [System.Collections.Generic.List[object]]::new()
+# detect results of the rows on screen: tweak id -> @{ Result; Reason } (no entry = checking)
+$script:Detect = @{}
+$script:DetectJob = $null
+# a detect read still running after this many seconds is abandoned and its unanswered rows show Unknown
+$script:DetectTimeoutSec = 20
 $PrioKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl'
 
 function Add-Tweak {
@@ -49,10 +55,11 @@ function Add-Tweak {
           [ValidateSet('Safe', 'Caution', 'Advanced')][string]$Risk = 'Safe',
           [ValidateSet('Toggle', 'Action', 'Group', 'Console')][string]$Kind = 'Toggle',
           [string]$Button = 'Run', [object[]]$Actions, [string]$Confirm, [string]$Script,
-          [scriptblock]$Apply, [scriptblock]$Revert, [scriptblock]$Detect, [scriptblock]$Check)
+          [scriptblock]$Apply, [scriptblock]$Revert, [scriptblock]$Check,
+          [object[]]$ApplyTarget, [object[]]$RevertTarget)
     $script:Tweaks.Add([pscustomobject]@{ Id = $Id; Category = $Category; Name = $Name; Description = $Description
             Risk = $Risk; Kind = $Kind; Button = $Button; Actions = $Actions; Confirm = $Confirm; Script = $Script
-            Apply = $Apply; Revert = $Revert; Detect = $Detect; Check = $Check })
+            Apply = $Apply; Revert = $Revert; Check = $Check; ApplyTarget = $ApplyTarget; RevertTarget = $RevertTarget })
 }
 foreach ($need in 'UI\MainWindow.xaml', 'Tweaks', 'StateChecker.ps1') {
     if (-not (Test-Path "$Root\$need")) {
@@ -64,7 +71,7 @@ foreach ($need in 'UI\MainWindow.xaml', 'Tweaks', 'StateChecker.ps1') {
 . "$Root\StateChecker.ps1"
 foreach ($f in Get-ChildItem "$Root\Tweaks" -Filter *.ps1 | Sort-Object Name) { . $f.FullName }
 
-# ---- remembers what Akari last applied (used for the state dot when a tweak has no Detect)
+# ---- remembers what Akari last applied (used for the state dot when a tweak has no declared targets)
 $StateDir = "$env:LOCALAPPDATA\Akari"; $StatePath = "$StateDir\state.json"
 $script:State = @{}
 if (Test-Path $StatePath) {
@@ -418,6 +425,31 @@ $SpecReadCode = $GetSpecsFunc + "`n" + $HostIdentityFunc + "`n" + @'
 try { @{ Specs = Get-Specs; Host = Get-HostIdentity } } catch { $_.Exception.Message }
 '@
 
+# machine reader for detect: reads each requested registry value into a shared dictionary as it goes, no decisions
+$DetectReadCode = @'
+$hives = @{
+    HKLM = [Microsoft.Win32.Registry]::LocalMachine; HKEY_LOCAL_MACHINE = [Microsoft.Win32.Registry]::LocalMachine
+    HKCU = [Microsoft.Win32.Registry]::CurrentUser; HKEY_CURRENT_USER = [Microsoft.Win32.Registry]::CurrentUser
+    HKCR = [Microsoft.Win32.Registry]::ClassesRoot; HKEY_CLASSES_ROOT = [Microsoft.Win32.Registry]::ClassesRoot
+    HKU = [Microsoft.Win32.Registry]::Users; HKEY_USERS = [Microsoft.Win32.Registry]::Users
+}
+function Read-RegValue([string]$Path, [string]$Name) {
+    $root, $sub = ($Path -replace '^Registry::', '') -split '\\', 2
+    $hive = $hives[$root.TrimEnd(':')]
+    if (-not $hive) { return @{ Error = "unknown registry root '$root'" } }
+    try {
+        $k = $hive.OpenSubKey([string]$sub, $false)
+        # a missing key means the value is absent, not unreadable
+        if ($null -eq $k) { return @{ Present = $false } }
+        try {
+            if (@($k.GetValueNames()) -notcontains $Name) { return @{ Present = $false } }
+            return @{ Present = $true; Value = $k.GetValue($Name, $null, 'DoNotExpandEnvironmentNames') }
+        } finally { $k.Close() }
+    } catch { return @{ Error = $_.Exception.Message } }
+}
+foreach ($r in $DetectReads) { [void]$DetectReadings.TryAdd($r.Key, (Read-RegValue $r.Path $r.Name)) }
+'@
+
 # ---- window
 $window = [Windows.Markup.XamlReader]::Parse((Get-Content "$Root\UI\MainWindow.xaml" -Raw))
 foreach ($n in 'Nav', 'Search', 'Heading', 'Tuner', 'SvcTuner', 'SvcCur', 'Rows', 'Page', 'Log', 'Hex', 'Dec', 'Logo', 'HomePanel', 'HostName', 'HostSub', 'Cards', 'CopySpecs') { Set-Variable $n $window.FindName($n) }
@@ -469,20 +501,22 @@ function New-Row($t) {
         $sub = "<StackPanel x:Name=`"Sub`" Visibility=`"Collapsed`" Margin=`"22,12,0,0`"><Border BorderBrush=`"{DynamicResource Bd}`" BorderThickness=`"0,1,0,0`" Margin=`"0,0,0,10`"/>$sub</StackPanel>"
     }
     $dotVis = if ($t.Kind -eq 'Toggle') { 'Visible' } else { 'Hidden' }
+    $stateVis = if (Test-HasTargets $t) { 'Visible' } else { 'Collapsed' }
     $xaml = @"
 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Background="{DynamicResource S1}" BorderBrush="{DynamicResource Bd}" BorderThickness="1" CornerRadius="5" Padding="12,9" Margin="0,0,0,6">
   <StackPanel>
   <Grid>
-    <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <Ellipse x:Name="Dot" Visibility="$dotVis" Width="9" Height="9" Stroke="{DynamicResource Mu}" StrokeThickness="1.5" HorizontalAlignment="Left" VerticalAlignment="Center"/>
     <StackPanel Grid.Column="1" VerticalAlignment="Center">
       <TextBlock Text="$(& $e $t.Name)" FontWeight="Medium"/>
       <TextBlock Text="$(& $e $t.Description)" Foreground="{DynamicResource Mu}" FontSize="12.5" TextWrapping="Wrap"/>
     </StackPanel>
-    <Border Grid.Column="2" BorderThickness="1" CornerRadius="3" Padding="7,1" Margin="12,0" VerticalAlignment="Center"
+    <TextBlock x:Name="State" Grid.Column="2" Visibility="$stateVis" FontSize="12" Margin="12,0,0,0" VerticalAlignment="Center"/>
+    <Border Grid.Column="3" BorderThickness="1" CornerRadius="3" Padding="7,1" Margin="12,0" VerticalAlignment="Center"
             BorderBrush="{DynamicResource $riskKey}"><TextBlock Text="$($t.Risk)" FontSize="12" Foreground="{DynamicResource $riskKey}"/></Border>
-    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">$btns</StackPanel>
+    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">$btns</StackPanel>
   </Grid>
   $sub
   </StackPanel>
@@ -492,15 +526,43 @@ function New-Row($t) {
 }
 
 function Get-State($t) {
-    if ($t.Detect) {
-        try { $r = & $t.Detect; if ($r -is [bool]) { return $r } } catch { }
-    }
     if ($script:State.ContainsKey($t.Id)) { return [bool]$script:State[$t.Id] }
     return $null
 }
 
+# on/off tweaks with declared targets show a detect result instead of the remembered dot
+function Test-HasTargets($t) { $t.Kind -eq 'Toggle' -and ($t.ApplyTarget -or $t.RevertTarget) }
+
+# dot fill, dot stroke, dot opacity and label colour per detect result (no result yet = checking)
+$DetectLook = @{
+    'Checking'       = @{ Fill = $null; Stroke = 'Mu'; Opacity = 0.35; Text = 'Mu' }
+    'Applied'        = @{ Fill = 'Inv'; Stroke = 'Inv'; Opacity = 1; Text = 'Tx' }
+    'Not applied'    = @{ Fill = $null; Stroke = 'Mu'; Opacity = 1; Text = 'Mu' }
+    'Partly applied' = @{ Fill = 'Warn'; Stroke = 'Warn'; Opacity = 1; Text = 'Warn' }
+    'Unknown'        = @{ Fill = $null; Stroke = 'Bad'; Opacity = 1; Text = 'Bad' }
+}
+
+function Update-DetectRow($t) {
+    $row = $script:RowCache[$t.Id]
+    $d = $script:Detect[$t.Id]
+    $res = if ($d) { $d.Result } else { 'Checking' }
+    $look = $DetectLook[$res]
+    $dot = $row.FindName('Dot')
+    $dot.Fill = if ($look.Fill) { $window.FindResource($look.Fill) } else { [Windows.Media.Brushes]::Transparent }
+    $dot.Stroke = $window.FindResource($look.Stroke)
+    $dot.Opacity = $look.Opacity
+    $st = $row.FindName('State')
+    $st.Text = if ($res -eq 'Checking') { 'Checking' + [string][char]0x2026 } else { $res }
+    $st.Foreground = $window.FindResource($look.Text)
+    $st.ToolTip = if ($d -and $d.Reason) { $d.Reason } else { $null }
+    # both buttons stay enabled whatever the result
+    $row.FindName('Opt').Style = $window.FindResource($(if ($res -eq 'Applied') { 'BtnP' } else { 'Btn' }))
+    $row.FindName('Def').Style = $window.FindResource('Btn')
+}
+
 function Update-Row($t) {
     if ($t.Kind -ne 'Toggle') { return }
+    if (Test-HasTargets $t) { Update-DetectRow $t; return }
     $row = $script:RowCache[$t.Id]
     $s = Get-State $t
     $dot = $row.FindName('Dot')
@@ -529,8 +591,11 @@ function Show-Page {
     foreach ($t in $list) {
         if (-not $script:RowCache.ContainsKey($t.Id)) { $script:RowCache[$t.Id] = New-Row $t }
         [void]$Rows.Children.Add($script:RowCache[$t.Id])
+        # every showing reads the machine again: the row says checking until its answer arrives
+        if (Test-HasTargets $t) { $script:Detect.Remove($t.Id) }
         Update-Row $t
     }
+    Start-DetectRead @($list | Where-Object { Test-HasTargets $_ })
     if (-not $list.Count -and -not $adv -and -not $onHome) {
         $msg = [Windows.Controls.TextBlock]::new()
         $msg.Text = if ($q) { 'No scripts match.' } else { 'Nothing here yet.' }
@@ -899,6 +964,79 @@ function Set-HomeDim {
     }
 }
 
+# ---- detect (row state read from the machine in the background)
+function Start-DetectRead($list) {
+    # the page changed: a read still in flight is for rows no longer shown, abandon it
+    $old = $script:DetectJob
+    if ($old) {
+        try { [void]$old.Ps.BeginStop($null, $null) } catch { }
+        $script:Stale.Add($old)
+        $script:DetectJob = $null
+    }
+    if (-not @($list).Count) { return }
+    # a tweak is running: rows stay at checking, the page is shown (and read) again when it finishes
+    if ($script:Busy) { return }
+    $rows = @()
+    $reads = @{}
+    foreach ($t in $list) {
+        $cmp = @(Get-CompareSettings $t.ApplyTarget $t.RevertTarget)
+        foreach ($c in $cmp) { if (-not $reads.ContainsKey($c.Key)) { $reads[$c.Key] = @{ Key = $c.Key; Path = $c.Path; Name = $c.Name } } }
+        $rows += @{ Tweak = $t; Keys = @($cmp | ForEach-Object { $_.Key }) }
+    }
+    try {
+        $readings = [System.Collections.Concurrent.ConcurrentDictionary[string, object]]::new()
+        $rs = [runspacefactory]::CreateRunspace()
+        $rs.Open()
+        $rs.SessionStateProxy.SetVariable('DetectReads', @($reads.Values))
+        $rs.SessionStateProxy.SetVariable('DetectReadings', $readings)
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+        [void]$ps.AddScript($DetectReadCode)
+        $script:DetectJob = @{ Ps = $ps; Rs = $rs; Handle = $ps.BeginInvoke(); Readings = $readings; Rows = $rows; Deadline = [DateTime]::UtcNow.AddSeconds($script:DetectTimeoutSec) }
+    } catch {
+        Add-Log "Error: Detect read failed to start: $($_.Exception.Message)"
+        foreach ($r in $rows) { Set-DetectResult $r.Tweak @{ Result = 'Unknown'; Reason = 'the read could not start' } }
+    }
+}
+
+function Set-DetectResult($t, $d) {
+    $script:Detect[$t.Id] = $d
+    if ($d.Result -eq 'Unknown') { Add-Log "$($t.Name): Unknown ($($d.Reason))" }
+    Update-Row $t
+}
+
+# called every tick: rows whose readings are all in get their result; at the deadline the rest become Unknown
+function Update-DetectRead {
+    $dj = $script:DetectJob
+    if (-not $dj) { return }
+    $done = $dj.Handle.IsCompleted
+    $late = (-not $done -and [DateTime]::UtcNow -ge $dj.Deadline)
+    $snap = @{}
+    foreach ($kv in $dj.Readings.ToArray()) { $snap[$kv.Key] = $kv.Value }
+    $left = @()
+    foreach ($r in $dj.Rows) {
+        $ready = $true
+        foreach ($k in $r.Keys) { if (-not $snap.ContainsKey($k)) { $ready = $false; break } }
+        if (-not ($ready -or $done -or $late)) { $left += $r; continue }
+        $d = Get-DetectResult $r.Tweak.ApplyTarget $r.Tweak.RevertTarget $snap
+        if ($late -and -not $ready) { $d = @{ Result = 'Unknown'; Reason = "not read within $($script:DetectTimeoutSec) seconds" } }
+        Set-DetectResult $r.Tweak $d
+    }
+    $dj.Rows = $left
+    if ($done) {
+        try { [void]$dj.Ps.EndInvoke($dj.Handle) } catch { Add-Log "Error: Detect read: $($_.Exception.Message)" }
+        foreach ($err in $dj.Ps.Streams.Error) { Add-Log "Error: $($err.ToString())" }
+        $dj.Ps.Dispose(); $dj.Rs.Dispose()
+        $script:DetectJob = $null
+    } elseif ($late) {
+        Add-Log "Detect: Read timed out after $($script:DetectTimeoutSec) seconds, unanswered rows show Unknown."
+        # ask the hung pipeline to stop without waiting; it is disposed once it has ended
+        try { [void]$dj.Ps.BeginStop($null, $null) } catch { }
+        $script:Stale.Add($dj)
+        $script:DetectJob = $null
+    }
+}
+
 $timer = [Windows.Threading.DispatcherTimer]::new()
 $timer.Interval = [TimeSpan]::FromMilliseconds(150)
 $timer.Add_Tick({
@@ -924,7 +1062,7 @@ $timer.Add_Tick({
             $msg = "timed out after $($script:SpecTimeoutSec) seconds"
             # ask the hung pipeline to stop without waiting; it is disposed once it has ended
             try { [void]$sj.Ps.BeginStop($null, $null) } catch { }
-            $script:SpecStale.Add($sj)
+            $script:Stale.Add($sj)
         } else {
             try {
                 [void]$sj.Ps.EndInvoke($sj.Handle)
@@ -947,12 +1085,13 @@ $timer.Add_Tick({
         }
         Update-Home
     }
-    # abandoned spec reads: dispose each one once its pipeline has really ended
-    for ($zi = $script:SpecStale.Count - 1; $zi -ge 0; $zi--) {
-        $z = $script:SpecStale[$zi]
+    Update-DetectRead
+    # abandoned reads: dispose each one once its pipeline has really ended
+    for ($zi = $script:Stale.Count - 1; $zi -ge 0; $zi--) {
+        $z = $script:Stale[$zi]
         if ($z.Handle.IsCompleted) {
             try { $z.Ps.Dispose(); $z.Rs.Dispose() } catch { }
-            $script:SpecStale.RemoveAt($zi)
+            $script:Stale.RemoveAt($zi)
         }
     }
     $j = $script:Job
