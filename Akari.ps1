@@ -535,7 +535,7 @@ function Test-HasTargets($t) { $t.Kind -eq 'Toggle' -and ($t.ApplyTarget -or $t.
 
 # dot fill, dot stroke, dot opacity and label colour per detect result (no result yet = checking)
 $DetectLook = @{
-    'Checking'       = @{ Fill = $null; Stroke = 'Mu'; Opacity = 0.35; Text = 'Mu' }
+    'Checking'       = @{ Fill = $null; Stroke = 'Mu'; Opacity = 0.5; Text = 'Mu'; Dash = $true }
     'Applied'        = @{ Fill = 'Inv'; Stroke = 'Inv'; Opacity = 1; Text = 'Tx' }
     'Not applied'    = @{ Fill = $null; Stroke = 'Mu'; Opacity = 1; Text = 'Mu' }
     'Partly applied' = @{ Fill = 'Warn'; Stroke = 'Warn'; Opacity = 1; Text = 'Warn' }
@@ -551,7 +551,10 @@ function Update-DetectRow($t) {
     $dot.Fill = if ($look.Fill) { $window.FindResource($look.Fill) } else { [Windows.Media.Brushes]::Transparent }
     $dot.Stroke = $window.FindResource($look.Stroke)
     $dot.Opacity = $look.Opacity
+    # assigned directly: an if-expression would unroll the collection into an object array
+    if ($look.Dash) { $dot.StrokeDashArray = [Windows.Media.DoubleCollection]::Parse('1 1') } else { $dot.StrokeDashArray = $null }
     $st = $row.FindName('State')
+    $st.FontStyle = if ($look.Dash) { [Windows.FontStyles]::Italic } else { [Windows.FontStyles]::Normal }
     $st.Text = if ($res -eq 'Checking') { 'Checking' + [string][char]0x2026 } else { $res }
     $st.Foreground = $window.FindResource($look.Text)
     $st.ToolTip = if ($d -and $d.Reason) { $d.Reason } else { $null }
@@ -612,6 +615,8 @@ function Set-Busy([bool]$b) { $script:Busy = $b; $Page.IsEnabled = -not $b }
 function Invoke-Code([string]$code, [string]$label, $meta = $null) {
     if ($script:Busy) { return }
     Set-Busy $true
+    # rows read before the change would show a half-way state: drop the read, the page reads again when the tweak finishes
+    if ($script:DetectJob) { Start-DetectRead @() }
     Add-Log $label
     $rs = [runspacefactory]::CreateRunspace()
     $rs.Open()
@@ -965,14 +970,15 @@ function Set-HomeDim {
 }
 
 # ---- detect (row state read from the machine in the background)
+# abandon a background read: ask its pipeline to stop without waiting; the tick disposes it once it has ended
+function Stop-Read($job) {
+    try { [void]$job.Ps.BeginStop($null, $null) } catch { }
+    $script:Stale.Add($job)
+}
+
 function Start-DetectRead($list) {
-    # the page changed: a read still in flight is for rows no longer shown, abandon it
-    $old = $script:DetectJob
-    if ($old) {
-        try { [void]$old.Ps.BeginStop($null, $null) } catch { }
-        $script:Stale.Add($old)
-        $script:DetectJob = $null
-    }
+    # the page changed (or a tweak started): a read still in flight is out of date, abandon it
+    if ($script:DetectJob) { Stop-Read $script:DetectJob; $script:DetectJob = $null }
     if (-not @($list).Count) { return }
     # a tweak is running: rows stay at checking, the page is shown (and read) again when it finishes
     if ($script:Busy) { return }
@@ -1030,9 +1036,7 @@ function Update-DetectRead {
         $script:DetectJob = $null
     } elseif ($late) {
         Add-Log "Detect: Read timed out after $($script:DetectTimeoutSec) seconds, unanswered rows show Unknown."
-        # ask the hung pipeline to stop without waiting; it is disposed once it has ended
-        try { [void]$dj.Ps.BeginStop($null, $null) } catch { }
-        $script:Stale.Add($dj)
+        Stop-Read $dj
         $script:DetectJob = $null
     }
 }
@@ -1060,9 +1064,7 @@ $timer.Add_Tick({
         $msg = $null
         if ($late) {
             $msg = "timed out after $($script:SpecTimeoutSec) seconds"
-            # ask the hung pipeline to stop without waiting; it is disposed once it has ended
-            try { [void]$sj.Ps.BeginStop($null, $null) } catch { }
-            $script:Stale.Add($sj)
+            Stop-Read $sj
         } else {
             try {
                 [void]$sj.Ps.EndInvoke($sj.Handle)

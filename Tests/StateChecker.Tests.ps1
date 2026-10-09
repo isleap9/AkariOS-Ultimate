@@ -23,63 +23,63 @@ $Revert = @(
     @{ Path = $K1; Name = 'value'; Value = 1 }
     @{ Path = $K2; Name = 'Allow'; Absent = $true }
 )
-function Read-Of($one, $two) {
+function New-Readings($one, $two) {
     @{ (Get-SettingKey $K1 'value') = $one; (Get-SettingKey $K2 'Allow') = $two }
 }
-function Found($v) { @{ Present = $true; Value = $v } }
+function New-Reading($v) { @{ Present = $true; Value = $v } }
 $Gone = @{ Present = $false }
 
 Describe 'Get-DetectResult' {
     It 'is Applied when every compared setting matches Apply' {
-        (Get-DetectResult $Apply $Revert (Read-Of (Found 0) (Found 0))).Result | Should Be 'Applied'
+        (Get-DetectResult $Apply $Revert (New-Readings (New-Reading 0) (New-Reading 0))).Result | Should Be 'Applied'
     }
 
     It 'is Not applied when every compared setting matches Revert' {
-        (Get-DetectResult $Apply $Revert (Read-Of (Found 1) $Gone)).Result | Should Be 'Not applied'
+        (Get-DetectResult $Apply $Revert (New-Readings (New-Reading 1) $Gone)).Result | Should Be 'Not applied'
     }
 
     It 'is Partly applied when some settings match Apply and others Revert' {
-        (Get-DetectResult $Apply $Revert (Read-Of (Found 0) $Gone)).Result | Should Be 'Partly applied'
+        (Get-DetectResult $Apply $Revert (New-Readings (New-Reading 0) $Gone)).Result | Should Be 'Partly applied'
     }
 
     It 'is Partly applied when a value matches neither target' {
-        (Get-DetectResult $Apply $Revert (Read-Of (Found 7) (Found 0))).Result | Should Be 'Partly applied'
+        (Get-DetectResult $Apply $Revert (New-Readings (New-Reading 7) (New-Reading 0))).Result | Should Be 'Partly applied'
     }
 
     It 'is Unknown with the reason when a setting could not be read' {
-        $r = Get-DetectResult $Apply $Revert (Read-Of (Found 0) @{ Error = 'Access denied' })
+        $r = Get-DetectResult $Apply $Revert (New-Readings (New-Reading 0) @{ Error = 'Access denied' })
         $r.Result | Should Be 'Unknown'
         $r.Reason | Should Match 'Access denied'
         $r.Reason | Should Match 'Allow'
     }
 
     It 'lets Unknown win over a result the other settings would give' {
-        (Get-DetectResult $Apply $Revert (Read-Of (Found 0) @{ Error = 'x' })).Result | Should Be 'Unknown'
-        (Get-DetectResult $Apply $Revert (Read-Of (Found 1) @{ Error = 'x' })).Result | Should Be 'Unknown'
+        (Get-DetectResult $Apply $Revert (New-Readings (New-Reading 0) @{ Error = 'x' })).Result | Should Be 'Unknown'
+        (Get-DetectResult $Apply $Revert (New-Readings (New-Reading 1) @{ Error = 'x' })).Result | Should Be 'Unknown'
     }
 
     It 'is Unknown when a compared setting has no reading at all' {
-        $r = Get-DetectResult $Apply $Revert @{ (Get-SettingKey $K1 'value') = (Found 0) }
+        $r = Get-DetectResult $Apply $Revert @{ (Get-SettingKey $K1 'value') = (New-Reading 0) }
         $r.Result | Should Be 'Unknown'
         $r.Reason | Should Match 'Allow'
     }
 
     It 'has no reason when the result is not Unknown' {
-        (Get-DetectResult $Apply $Revert (Read-Of (Found 0) (Found 0))).Reason | Should BeNullOrEmpty
+        (Get-DetectResult $Apply $Revert (New-Readings (New-Reading 0) (New-Reading 0))).Reason | Should BeNullOrEmpty
     }
 }
 
 Describe 'Absent values' {
     It 'matches an absent target when the value is missing' {
-        (Get-DetectResult $Apply $Revert (Read-Of (Found 1) $Gone)).Result | Should Be 'Not applied'
+        (Get-DetectResult $Apply $Revert (New-Readings (New-Reading 1) $Gone)).Result | Should Be 'Not applied'
     }
 
     It 'does not match an absent target when the value is present' {
-        (Get-DetectResult $Apply $Revert (Read-Of (Found 1) (Found 0))).Result | Should Be 'Partly applied'
+        (Get-DetectResult $Apply $Revert (New-Readings (New-Reading 1) (New-Reading 0))).Result | Should Be 'Partly applied'
     }
 
     It 'does not match a value target when the value is missing' {
-        (Get-DetectResult $Apply $Revert (Read-Of (Found 0) $Gone)).Result | Should Be 'Partly applied'
+        (Get-DetectResult $Apply $Revert (New-Readings (New-Reading 0) $Gone)).Result | Should Be 'Partly applied'
     }
 
     It 'can be the Apply side (Apply deletes, Revert sets)' {
@@ -87,7 +87,7 @@ Describe 'Absent values' {
         $v = @(@{ Path = $K1; Name = 'x'; Value = 1 })
         $k = Get-SettingKey $K1 'x'
         (Get-DetectResult $a $v @{ $k = $Gone }).Result | Should Be 'Applied'
-        (Get-DetectResult $a $v @{ $k = (Found 1) }).Result | Should Be 'Not applied'
+        (Get-DetectResult $a $v @{ $k = (New-Reading 1) }).Result | Should Be 'Not applied'
     }
 }
 
@@ -103,13 +103,13 @@ Describe 'Settings identical in both targets' {
     }
 
     It 'do not stop Not applied when the machine differs from them' {
-        $read = Read-Of (Found 1) $Gone
-        $read[(Get-SettingKey 'HKCU:\Test\Same' 'Both')] = (Found 5)
+        $read = New-Readings (New-Reading 1) $Gone
+        $read[(Get-SettingKey 'HKCU:\Test\Same' 'Both')] = (New-Reading 5)
         (Get-DetectResult $a $r $read).Result | Should Be 'Not applied'
     }
 
     It 'do not make the result Unknown when they cannot be read' {
-        $read = Read-Of (Found 0) (Found 0)
+        $read = New-Readings (New-Reading 0) (New-Reading 0)
         $read[(Get-SettingKey 'HKCU:\Test\Same' 'Both')] = @{ Error = 'denied' }
         (Get-DetectResult $a $r $read).Result | Should Be 'Applied'
     }
@@ -117,6 +117,21 @@ Describe 'Settings identical in both targets' {
     It 'treat two absent expectations as identical' {
         $x = @{ Path = $K1; Name = 'gone'; Absent = $true }
         @(Get-CompareSettings ($Apply + $x) ($Revert + $x)).Count | Should Be 2
+    }
+}
+
+Describe 'Settings only one target declares' {
+    $a = @(@{ Path = $K1; Name = 'only'; Value = 1 }) + $Apply
+    $k = Get-SettingKey $K1 'only'
+
+    It 'must match for Applied' {
+        $read = New-Readings (New-Reading 0) (New-Reading 0); $read[$k] = $Gone
+        (Get-DetectResult $a $Revert $read).Result | Should Be 'Partly applied'
+    }
+
+    It 'do not hold back Not applied (Revert leaves them as they are)' {
+        $read = New-Readings (New-Reading 1) $Gone; $read[$k] = (New-Reading 1)
+        (Get-DetectResult $a $Revert $read).Result | Should Be 'Not applied'
     }
 }
 
@@ -133,14 +148,14 @@ Describe 'Setting keys and values' {
     It 'compares a DWORD read back as a negative Int32 with its unsigned value' {
         $a = @(@{ Path = $K1; Name = 'v'; Value = 4294967295 })
         $v = @(@{ Path = $K1; Name = 'v'; Value = 0 })
-        (Get-DetectResult $a $v @{ (Get-SettingKey $K1 'v') = (Found ([int]-1)) }).Result | Should Be 'Applied'
+        (Get-DetectResult $a $v @{ (Get-SettingKey $K1 'v') = (New-Reading ([int]-1)) }).Result | Should Be 'Applied'
     }
 
     It 'compares strings' {
         $a = @(@{ Path = $K1; Name = 's'; Value = '%SystemRoot%\System32\systray.exe' })
         $v = @(@{ Path = $K1; Name = 's'; Absent = $true })
-        (Get-DetectResult $a $v @{ (Get-SettingKey $K1 's') = (Found '%SystemRoot%\System32\systray.exe') }).Result | Should Be 'Applied'
-        (Get-DetectResult $a $v @{ (Get-SettingKey $K1 's') = (Found 'other.exe') }).Result | Should Be 'Partly applied'
+        (Get-DetectResult $a $v @{ (Get-SettingKey $K1 's') = (New-Reading '%SystemRoot%\System32\systray.exe') }).Result | Should Be 'Applied'
+        (Get-DetectResult $a $v @{ (Get-SettingKey $K1 's') = (New-Reading 'other.exe') }).Result | Should Be 'Partly applied'
     }
 
     It 'does not treat a number and a different string as equal' {

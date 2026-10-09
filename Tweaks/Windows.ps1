@@ -1516,9 +1516,14 @@ Start-Process "$env:SystemRoot\Temp\gamingrepairtool.exe"
         @{ Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR'; Name = 'AppCaptureEnabled'; Value = 0 }
         @{ Path = 'HKCU:\Software\Microsoft\GameBar'; Name = 'UseNexusForGameBarEnabled'; Value = 0 }
         @{ Path = 'HKCU:\Software\Microsoft\GameBar'; Name = 'GamepadNexusChordEnabled'; Value = 0 }
+        @{ Path = 'HKCR:\ms-gamebar'; Name = '(Default)'; Value = 'URL:ms-gamebar' }
         @{ Path = 'HKCR:\ms-gamebar'; Name = 'NoOpenWith'; Value = '' }
         @{ Path = 'HKCR:\ms-gamebar\shell\open\command'; Name = '(Default)'; Value = '%SystemRoot%\System32\systray.exe' }
+        @{ Path = 'HKCR:\ms-gamebarservices'; Name = '(Default)'; Value = 'URL:ms-gamebarservices' }
+        @{ Path = 'HKCR:\ms-gamebarservices'; Name = 'URL Protocol'; Value = '' }
+        @{ Path = 'HKCR:\ms-gamebarservices'; Name = 'NoOpenWith'; Value = '' }
         @{ Path = 'HKCR:\ms-gamebarservices\shell\open\command'; Name = '(Default)'; Value = '%SystemRoot%\System32\systray.exe' }
+        @{ Path = 'HKCR:\ms-gamingoverlay'; Name = '(Default)'; Value = 'URL:ms-gamingoverlay' }
         @{ Path = 'HKCR:\ms-gamingoverlay'; Name = 'NoOpenWith'; Value = '' }
         @{ Path = 'HKCR:\ms-gamingoverlay\shell\open\command'; Name = '(Default)'; Value = '%SystemRoot%\System32\systray.exe' }
         @{ Path = 'HKLM:\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Windows.Gaming.GameBar.PresenceServer.Internal.PresenceWriter'; Name = 'ActivationType'; Value = 0 }
@@ -1529,9 +1534,14 @@ Start-Process "$env:SystemRoot\Temp\gamingrepairtool.exe"
         @{ Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR'; Name = 'AppCaptureEnabled'; Absent = $true }
         @{ Path = 'HKCU:\Software\Microsoft\GameBar'; Name = 'UseNexusForGameBarEnabled'; Absent = $true }
         @{ Path = 'HKCU:\Software\Microsoft\GameBar'; Name = 'GamepadNexusChordEnabled'; Absent = $true }
+        @{ Path = 'HKCR:\ms-gamebar'; Name = '(Default)'; Absent = $true }
         @{ Path = 'HKCR:\ms-gamebar'; Name = 'NoOpenWith'; Absent = $true }
         @{ Path = 'HKCR:\ms-gamebar\shell\open\command'; Name = '(Default)'; Absent = $true }
+        @{ Path = 'HKCR:\ms-gamebarservices'; Name = '(Default)'; Absent = $true }
+        @{ Path = 'HKCR:\ms-gamebarservices'; Name = 'URL Protocol'; Absent = $true }
+        @{ Path = 'HKCR:\ms-gamebarservices'; Name = 'NoOpenWith'; Absent = $true }
         @{ Path = 'HKCR:\ms-gamebarservices\shell\open\command'; Name = '(Default)'; Absent = $true }
+        @{ Path = 'HKCR:\ms-gamingoverlay'; Name = '(Default)'; Absent = $true }
         @{ Path = 'HKCR:\ms-gamingoverlay'; Name = 'NoOpenWith'; Absent = $true }
         @{ Path = 'HKCR:\ms-gamingoverlay\shell\open\command'; Name = '(Default)'; Absent = $true }
         @{ Path = 'HKLM:\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Windows.Gaming.GameBar.PresenceServer.Internal.PresenceWriter'; Name = 'ActivationType'; Value = 1 }
