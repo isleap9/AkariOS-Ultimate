@@ -530,6 +530,8 @@ function Get-PlanValues([string]$Scheme) {
         if ($set -and $indent -eq 4 -and $line -match ':\s*0x([0-9a-fA-F]+)\s*$') { $vals += [long][Convert]::ToUInt32($Matches[1], 16) }
     }
     . $flush
+    # a plan always has values: none found means the dump was not understood, which must not pass as 'not on this machine'
+    if (-not $map.Count) { $script:plans[$Scheme] = @{ Error = 'powercfg output not understood' }; return $script:plans[$Scheme] }
     $script:plans[$Scheme] = @{ Values = $map }
     return $script:plans[$Scheme]
 }
@@ -549,7 +551,8 @@ function Read-BootValue($r) {
         $out = @(bcdedit /enum $r.BootEntry 2>&1)
         if ($LASTEXITCODE -ne 0) { $script:bootEntries[$r.BootEntry] = @{ Error = "bcdedit: $($out -join ' ')" } }
         else {
-            # element lines are 'name   value'; element names are not localised
+            # element lines are 'name   value'. Element names and most values are not localised, but Yes/No values are,
+            # so a boolean boot target only reads correctly on English Windows
             $map = @{}
             foreach ($line in $out) { if ([string]$line -match '^(\S+)\s+(\S.*?)\s*$') { $map[$Matches[1]] = $Matches[2] } }
             $script:bootEntries[$r.BootEntry] = @{ Values = $map }

@@ -80,8 +80,9 @@ function ConvertFrom-RegText([string]$Text, [switch]$DollarToken) {
     return , $out.ToArray()
 }
 
-function Test-UnderKey([string]$KeyPath, [string]$Parent) {
-    return ($KeyPath -eq $Parent -or $KeyPath.StartsWith($Parent + '\'))
+# is a setting's parent (registry key, or power plan 'power|<guid>') the deleted one or below it
+function Test-UnderParent([string]$Child, [string]$Parent) {
+    return ($Child -eq $Parent -or $Child.StartsWith($Parent + '\'))
 }
 
 # an optional feature waiting for a restart already has its change made; a removed payload is still disabled
@@ -150,7 +151,7 @@ function Resolve-Target($Target) {
         foreach ($info in @(Get-EntryInfo $s)) {
             if ($info.Deletes) {
                 # deleting drops every value under it that this target set earlier
-                foreach ($k in @($values.Keys)) { if ($values[$k].Parent -and (Test-UnderKey $values[$k].Parent $info.Deletes)) { $values.Remove($k) } }
+                foreach ($k in @($values.Keys)) { if ($values[$k].Parent -and (Test-UnderParent $values[$k].Parent $info.Deletes)) { $values.Remove($k) } }
                 $deleted.Add($info.Deletes)
                 continue
             }
@@ -164,7 +165,7 @@ function Resolve-Target($Target) {
 # what a resolved target expects of one setting: its entry, absent when a deletion covers it, or $null when it does not say
 function Get-Expectation($Resolved, $Info) {
     if ($Resolved.Values.Contains($Info.Key)) { return $Resolved.Values[$Info.Key] }
-    if ($Info.Parent) { foreach ($d in $Resolved.Deleted) { if (Test-UnderKey $Info.Parent $d) { return @{ Absent = $true } } } }
+    if ($Info.Parent) { foreach ($d in $Resolved.Deleted) { if (Test-UnderParent $Info.Parent $d) { return @{ Absent = $true } } } }
     return $null
 }
 

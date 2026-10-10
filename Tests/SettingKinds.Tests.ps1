@@ -1,11 +1,6 @@
-. "$PSScriptRoot\..\StateChecker.ps1"
+. "$PSScriptRoot\TestHelpers.ps1"
 
 # service startup types, scheduled-task state and optional-feature state as declared targets
-$Gone = @{ Present = $false }
-function New-Reading($v) { @{ Present = $true; Value = $v } }
-function Get-Result($ApplyTarget, $RevertTarget, [hashtable]$Readings) {
-    (Get-DetectResult $ApplyTarget $RevertTarget $Readings).Result
-}
 
 Describe 'Service startup types' {
     $a = @(@{ Service = 'DiagTrack'; StartType = 'Disabled' })

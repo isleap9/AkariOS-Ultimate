@@ -1,12 +1,7 @@
-. "$PSScriptRoot\..\StateChecker.ps1"
+. "$PSScriptRoot\TestHelpers.ps1"
 
 # power plans, power setting values and boot (BCD) settings as declared targets
-$Gone = @{ Present = $false }
 $NotHere = @{ NotOnMachine = $true }
-function New-Reading($v) { @{ Present = $true; Value = $v } }
-function Get-Result($ApplyTarget, $RevertTarget, [hashtable]$Readings) {
-    (Get-DetectResult $ApplyTarget $RevertTarget $Readings).Result
-}
 
 $Akari = '99999999-9999-9999-9999-999999999999'
 $Balanced = '381b4222-f694-41f0-9685-ff5bb260df2e'

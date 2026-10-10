@@ -5224,7 +5224,7 @@ cmd /c "reg delete `"$diskPath`" /f >nul 2>&1"
     }
 
 Add-Tweak -Id 'power-plan' -Category 'Windows' -Name 'Power plan' -Risk Caution `
-    -Description 'Apply the Akari power plan. Optimize deletes every other power plan; Default brings back only the standard Windows plans, not ones you or your PC maker added' `
+    -Description 'Apply the Akari power plan. Optimize deletes every other power plan. Default restores the default plans (plans you made are not brought back, and your changes to the standard plans are reset) and turns hibernate and fast startup back on' `
     -ApplyTarget @(
         # akari plan active, with its values (values this hardware does not have are skipped by detect)
         @{ ActivePowerScheme = '99999999-9999-9999-9999-999999999999' }
@@ -5281,8 +5281,7 @@ Add-Tweak -Id 'power-plan' -Category 'Windows' -Name 'Power plan' -Risk Caution 
         @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerRequestOverride\Process'; Name = 'Discord.exe'; Value = 7 }
     ) `
     -RevertTarget @(
-        # standard plans restored (balanced active), akari plan gone
-        @{ ActivePowerScheme = '381b4222-f694-41f0-9685-ff5bb260df2e' }
+        # akari plan gone (which plan default makes active depends on the pc, so it is not checked)
         @{ PowerScheme = '99999999-9999-9999-9999-999999999999'; Absent = $true }
         @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power'; Name = 'HibernateEnabled'; Absent = $true }
         @{ Path = 'HKLM:\SYSTEM\CurrentControlSet\Control\Power'; Name = 'HibernateEnabledDefault'; Value = 1 }

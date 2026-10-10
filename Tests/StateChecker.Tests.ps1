@@ -1,4 +1,4 @@
-. "$PSScriptRoot\..\StateChecker.ps1"
+. "$PSScriptRoot\TestHelpers.ps1"
 
 Describe 'Get-DetectResults' {
     It 'returns exactly the four Detect results' {
@@ -26,8 +26,6 @@ $Revert = @(
 function New-Readings($one, $two) {
     @{ (Get-SettingKey $K1 'value') = $one; (Get-SettingKey $K2 'Allow') = $two }
 }
-function New-Reading($v) { @{ Present = $true; Value = $v } }
-$Gone = @{ Present = $false }
 
 Describe 'Get-DetectResult' {
     It 'is Applied when every compared setting matches Apply' {
