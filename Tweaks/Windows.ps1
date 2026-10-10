@@ -787,7 +787,7 @@ Copy-Item "$env:SystemDrive\ProgramData\User Account Pictures" -Destination "$en
     }
 
 Add-Tweak -Id 'widgets' -Category 'Windows' -Name 'Widgets' -Risk Safe `
-    -Description 'Remove the Widgets board from the taskbar and stop its processes' `
+    -Description 'Remove the Widgets board from the taskbar and stop its processes (Restart Explorer.exe to see the changes)' `
     -Apply {
 # disable widgets regedit
 cmd /c "reg add `"HKLM\SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests`" /v `"value`" /t REG_DWORD /d `"0`" /f >nul 2>&1"
@@ -805,9 +805,6 @@ cmd /c "reg add `"HKLM\SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests
 
 # windows widgets from taskbar regedit
 cmd /c "reg delete `"HKLM\SOFTWARE\Policies\Microsoft\Dsh`" /f >nul 2>&1"
-    } `
-    -Detect {
-        (Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh' -ErrorAction SilentlyContinue).AllowNewsAndInterests -eq 0
     }
 
 Add-Tweak -Id 'copilot' -Category 'Windows' -Name 'Copilot' -Risk Safe `
